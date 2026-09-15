@@ -135,8 +135,8 @@ window.SKILLS = {
         "cpp.templates",
         "cpp.variadic-templates",
         "cpp.type-traits-constraints",
-        "perf.virtual-cost",
-        "cpp.raw-allocation"
+        "cpp.virtual-dispatch",
+        "perf.virtual-cost"
       ]
     },
     {
@@ -581,8 +581,13 @@ window.SKILLS = {
       "can": "You can walk an array with a raw pointer, explain why p + 1 advances by sizeof(*p), and choose between a pointer and a reference by asking whether 'absent' is a legal answer.",
       "introduced": 2,
       "practised": [],
-      "depth": 2,
+      "depth": 3,
       "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slides 7–10"
+        },
         {
           "type": "lab",
           "session": 2,
@@ -607,20 +612,13 @@ window.SKILLS = {
       "name": "new / delete, the classic bugs & allocator non-determinism",
       "can": "You can pair every new with its matching delete or delete[], name the four classic heap bugs, and explain why the same new call can take 20 ns or 20 µs and land in p99.9.",
       "introduced": 2,
-      "practised": [
-        3
-      ],
+      "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 17–19"
-        },
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 5–6"
+          "label": "Deck U2 · slides 11–12, 25–27, 49"
         },
         {
           "type": "lab",
@@ -656,7 +654,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 20, 26"
+          "label": "Deck U2 · slides 29–30, 35, 41"
         },
         {
           "type": "lab",
@@ -692,7 +690,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 22–24"
+          "label": "Deck U2 · slides 37–39"
         },
         {
           "type": "lab",
@@ -728,7 +726,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 25–26"
+          "label": "Deck U2 · slides 31–33, 40"
         },
         {
           "type": "lab",
@@ -764,7 +762,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 5–7"
+          "label": "Deck U2 · slides 5–6, 13–15"
         },
         {
           "type": "lab",
@@ -795,7 +793,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slide 8"
+          "label": "Deck U2 · slide 16"
         },
         {
           "type": "exam",
@@ -818,7 +816,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 10–11"
+          "label": "Deck U2 · slides 18–19, 51"
         },
         {
           "type": "deck",
@@ -850,7 +848,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 13–15"
+          "label": "Deck U2 · slides 21–23"
         },
         {
           "type": "lab",
@@ -882,7 +880,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 3,
-          "label": "Deck U3 · slides 8, 10, 26"
+          "label": "Deck U3 · slides 8, 10, 35"
         },
         {
           "type": "lab",
@@ -951,7 +949,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 3,
-          "label": "Deck U3 · slides 9, 13, 25"
+          "label": "Deck U3 · slides 9, 13, 34"
         },
         {
           "type": "hw",
@@ -1040,7 +1038,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 3,
-          "label": "Deck U3 · slides 19–20, 27"
+          "label": "Deck U3 · slides 19–20, 36"
         },
         {
           "type": "lab",
@@ -1095,6 +1093,31 @@ window.SKILLS = {
       "interview": false
     },
     {
+      "id": "cpp.virtual-dispatch",
+      "category": "cpp",
+      "name": "Inheritance, virtual functions & abstract interfaces",
+      "can": "You can define an abstract interface with pure virtual functions and a virtual destructor, use override and final correctly, and spot the slicing and delete-through-a-non-virtual-base bugs.",
+      "introduced": 3,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 3,
+          "label": "Deck U3 · slides 24–26, 29, 31"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: OOP, Virtual Dispatch & Object Model"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Core C++: Memory, RAII & Object Model"
+        }
+      ],
+      "interview": true
+    },
+    {
       "id": "perf.virtual-cost",
       "category": "perf",
       "name": "Virtual dispatch and what it costs",
@@ -1103,12 +1126,12 @@ window.SKILLS = {
       "practised": [
         4
       ],
-      "depth": 2,
+      "depth": 3,
       "where": [
         {
           "type": "deck",
           "session": 3,
-          "label": "Deck U3 · slide 24"
+          "label": "Deck U3 · slides 27–28, 30, 33"
         },
         {
           "type": "deck",

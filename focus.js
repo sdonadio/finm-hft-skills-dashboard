@@ -125,31 +125,31 @@ window.FOCUS = {
           "title": "Layout is a latency decision: AoS vs SoA",
           "text": "Memory moves in 64-byte lines, so the cost of a scan is the number of lines it touches, not the number of adds it does. An array of fat structs drags cold bytes along for the ride — and the compiler's padding makes the struct wider than the fields you declared. Packing the hot field into its own contiguous array (struct of arrays) turns the same arithmetic into a fraction of the cache lines and gives the hardware prefetcher a regular stride to run ahead on.",
           "code": "struct Quote { double px; int qty; char t[40]; };   // AoS, exactly as on the slide\nstd::printf(\"%zu %zu \", sizeof(Quote),          // 52 bytes declared, padded to 8\n            64 / sizeof(double));               // useful prices per line, SoA\nstd::printf(\"%zu %zu\\n\", (1024 * sizeof(Quote) + 63) / 64,   // lines: 1024 px, AoS\n                         (1024 * sizeof(double) + 63) / 64); // lines: 1024 px, SoA\n// 56 8 896 128   -- 7x fewer cache lines for identical arithmetic",
-          "deck": "Deck U2 · slide 7"
+          "deck": "Deck U2 · slides 13–15"
         },
         {
           "title": "The pipeline, and a branch it cannot guess",
           "text": "A modern core decodes and executes far ahead of itself and guesses which way each branch will go; a mispredict on the hot path throws the speculated work away and refills the pipeline, roughly 15–20 cycles. So make branches predictable — sort or partition the data so they go the same way, and hoist rare cases out of the hot loop — and go branchless with arithmetic or a conditional move only where you have measured that the predictor is losing.",
           "code": "int px[6] = {3, -1, 4, -1, 5, -9};\nint a = 0, b = 0;\nfor (int v : px) if (v > 0) a += v;       // one data-dependent branch per element\nfor (int v : px) b += v & ~(v >> 31);     // branchless: the sign bit IS the mask\nstd::printf(\"%d %d\\n\", a, b);\n// 12 12   -- same answer, and the second loop has nothing to mispredict",
-          "deck": "Deck U2 · slide 8"
+          "deck": "Deck U2 · slide 16"
         },
         {
           "title": "The 64-byte cache line and false sharing",
           "text": "Because the line is the unit of transfer, two variables written by two different threads that happen to share one line make the cores invalidate each other's copy and ping-pong it between them. The symptom is a threaded version that is slower than the single-threaded one, the cause is invisible in the source, and the fix is alignas(64) so each hot variable owns its line — padding is not waste when it buys you a clean line and kills a stall.",
           "code": "struct Bad  { std::atomic<long> a, b; };         // two counters, ONE 64B line\nstruct Good { alignas(64) std::atomic<long> a;   // each owns its own line\n              alignas(64) std::atomic<long> b; };\nstd::printf(\"%zu %zu %zu %zu\\n\", sizeof(Bad), alignof(Bad),\n                                 sizeof(Good), alignof(Good));\n// 16 8 128 64   -- Bad fits in one line and the cores fight over it",
-          "deck": "Deck U2 · slides 10–11"
+          "deck": "Deck U2 · slides 18–19"
         },
         {
           "title": "Most benchmarks lie",
           "text": "Intuition about performance is almost always wrong, and so is an unguarded measurement. If the result is unused the optimiser deletes the work you meant to time, so consume it with a sink the compiler cannot see through; then measure a release build, warm up so the caches and the branch predictor are primed, and report a sorted sample as p50 / p99 / p99.9 with the machine stated rather than a single mean. Profile before you optimise — perf record tells you where the cycles and the misses actually land.",
           "code": "long long acc = 0;                                  // -O2, warm up, THEN time\nfor (int i = 0; i < 1000; ++i) acc += (long long)i * i;\nasm volatile(\"\" : : \"r\"(acc) : \"memory\");           // a sink DCE cannot see through\nstd::printf(\"sum=%lld\\n\", acc);                     // leave acc unused and the\n// sum=332833500                                    -- whole loop simply vanishes",
-          "deck": "Deck U2 · slides 13–15"
+          "deck": "Deck U2 · slides 21–23"
         },
         {
           "title": "RAII, and unique_ptr over shared_ptr",
           "text": "Tie a resource's lifetime to an object's scope — acquire in the constructor, release in the destructor — and the compiler guarantees the cleanup on every exit path, including an exception unwinding the stack. Destructors run last-built-first and you never call them yourself. unique_ptr is that idea for heap memory: sole ownership, move-only, the same size and speed as a raw pointer, and the default you reach for. shared_ptr is reference-counted and the count is atomic, so every copy and destroy is a synchronising read-modify-write that bounces a cache line between cores; weak_ptr observes without owning and is how you break a cycle.",
           "code": "struct Guard { const char* n; ~Guard() { std::printf(\"-%s \", n); } };   // RELEASE\n{ Guard a{\"book\"}, b{\"pool\"}; std::printf(\"+book +pool \"); }  // reverse order\nauto u = std::make_unique<int>(7);         // sole owner, move-only, 1 pointer\nauto s = std::make_shared<int>(7);         // refcounted, and the count is ATOMIC\n{ auto s2 = s; std::printf(\"use=%ld \", s.use_count()); }\nstd::printf(\"use=%ld sizeof %zu %zu\\n\", s.use_count(), sizeof(u), sizeof(s));\n// +book +pool -pool -book use=2 use=1 sizeof 8 16",
-          "deck": "Deck U2 · slide 20 · Deck U2 · slides 22–24"
+          "deck": "Deck U2 · slides 29–30, 35 · Deck U2 · slides 37–39"
         }
       ],
       "hft": {
@@ -250,7 +250,7 @@ window.FOCUS = {
           "title": "A template is a recipe, not code",
           "text": "template<typename T> is a blueprint; the compiler instantiates it — generates real machine code — the first time you use it with a concrete type, and then inlines it. That is why a ring<T,N> or an ObjectPool<T,N> costs the same as the version you would have hand-written for that exact type, and why the template call beats a virtual one on the hot path: nothing is left to indirect through. You rarely spell the arguments out because they are deduced from the call, and you can hand-tune one type that deserves it with a full or partial specialisation. The prices are real: definitions must live in headers, and every distinct instantiation is separate machine code that grows the binary and can thrash the instruction cache.",
           "code": "template <class T> struct Serializer {              // primary: the generic recipe\n  static const char* wire() { return \"generic\"; }\n};\ntemplate <> struct Serializer<long> {               // full spec for the hot type\n  static const char* wire() { return \"fast_itoa\"; }\n};\ntemplate <class T> T smaller(T a, T b) { return a < b ? a : b; }\nint main() {\n  std::printf(\"%s %s %d %.2f\\n\", Serializer<double>::wire(), Serializer<long>::wire(),\n              smaller(3, 4), smaller(0.5, 0.25));   // T deduced: int, then double\n}\n// generic fast_itoa 3 0.25",
-          "deck": "Deck U3 · slides 15–17 · Deck U3 · slide 24"
+          "deck": "Deck U3 · slides 15–17 · Deck U3 · slides 28, 33"
         },
         {
           "title": "Packs, folds and compile-time branches",
