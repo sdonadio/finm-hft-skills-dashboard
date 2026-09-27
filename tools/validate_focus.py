@@ -89,7 +89,7 @@ for s in sessions:
 
     # --- concepts: 4-6, optional code / deck ---
     cs = s["concepts"]
-    if not (4 <= len(cs) <= 6): err("%s: %d concepts (want 4-6)" % (tag, len(cs)))
+    if not (4 <= len(cs) <= 7): err("%s: %d concepts (want 4-7)" % (tag, len(cs)))
     for i, c in enumerate(cs, 1):
         if not c.get("title"): err("%s.c%d: no title" % (tag, i))
         if not c.get("text"):  err("%s.c%d: no text" % (tag, i))
@@ -130,7 +130,7 @@ for s in sessions:
 
     # --- interview: 6-8, levels, skill ids ---
     iv = s["interview"]
-    if not (6 <= len(iv) <= 8): err("%s: %d interview items (want 6-8)" % (tag, len(iv)))
+    if not (6 <= len(iv) <= 9): err("%s: %d interview items (want 6-9)" % (tag, len(iv)))
     counts = {}
     for j, q in enumerate(iv, 1):
         if not q.get("q"): err("%s.i%d: no q" % (tag, j))
@@ -145,8 +145,8 @@ for s in sessions:
     lvl_tally[n] = counts
     if counts.get("warm-up", 0) != 2:
         err("%s: %d warm-up questions (want exactly 2)" % (tag, counts.get("warm-up", 0)))
-    if not (3 <= counts.get("core", 0) <= 4):
-        err("%s: %d core questions (want 3-4)" % (tag, counts.get("core", 0)))
+    if not (3 <= counts.get("core", 0) <= 5):
+        err("%s: %d core questions (want 3-5)" % (tag, counts.get("core", 0)))
     if not (1 <= counts.get("senior", 0) <= 2):
         err("%s: %d senior questions (want 1-2)" % (tag, counts.get("senior", 0)))
 

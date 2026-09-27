@@ -343,6 +343,12 @@ window.FOCUS = {
           "deck": "Deck U4 · slides 8–9"
         },
         {
+          "title": "What a virtual call actually costs",
+          "text": "A polymorphic object carries one hidden vptr to a per-class table of function addresses, so sizeof grows by eight the moment the first virtual appears. The call is two dependent loads plus an indirect branch — but the real bill is the inlining you lose and the branch mispredicts when a loop sees several targets. final or an exact known type lets the compiler devirtualise and inline through it. This is the run-time dispatch that the rest of the session replaces: CRTP and policies bind the call at compile time, so the vptr, the table and the indirect branch all disappear.",
+          "code": "struct P { int a; };                              // plain\nstruct V { int a; virtual ~V() = default; };      // polymorphic: hidden vptr\nstd::cout << sizeof(P) << ' ' << sizeof(V) << ' ' << alignof(V) << ' '\n          << std::is_polymorphic_v<V> << '\\n';\n// 4 16 8 1     -- 8B vptr + 4B int + 4B padding",
+          "deck": "Deck U4 · slide 11"
+        },
+        {
           "title": "CRTP and policy-based design",
           "text": "The Curiously Recurring Template Pattern templates a base on its own derived type, so the base can static_cast down and call the derived method: dispatch bound at compile time, fully inlinable, and no vptr, so an empty strategy really is one byte. Policy-based design is the same idea composed — pass SignalPolicy, RiskPolicy and ExecPolicy as template parameters and swapping a component is swapping a type, which means the compiler generates a fresh, fully inlined class rather than a flag you test per tick. The expensive part of a virtual call is not the vtable load, it is the inlining you lose behind it.",
           "code": "template <class D> struct Strategy {                 // base templated on its derived type\n  void on_book(double mid) { static_cast<D*>(this)->signal(mid); }   // no vtable\n};\nstruct Momentum : Strategy<Momentum> {\n  void signal(double mid) { std::printf(\"buy %.2f \", mid); }         // inlined\n};\nint main() {\n  Momentum m; m.on_book(100.01);\n  std::printf(\"%zu\\n\", sizeof(Momentum));            // no vptr at all\n}\n// buy 100.01 1",
@@ -393,6 +399,12 @@ window.FOCUS = {
           "a": "A plain if is a run-time test: both branches are compiled and the CPU evaluates the condition and can mispredict it. if constexpr is evaluated during compilation and the untaken branch is discarded before code generation, so it is not even required to be valid for that instantiation — which is exactly why you cannot just write if (std::is_same_v<Msg, PlaceOrder>) and expect route(m) to compile for a BookSnapshot. So if constexpr costs nothing at run time and lets you write a branch that would otherwise be ill-formed. It is not #ifdef: the discarded branch still has to parse.",
           "level": "warm-up",
           "skill": "cpp.type-traits-constraints"
+        },
+        {
+          "q": "Precisely what does a virtual call cost, and when does it actually hurt?",
+          "a": "Mechanically: load the vptr out of the object, load the slot out of the vtable, then an indirect call — two dependent loads and a branch whose target is not known until the first load returns. On a loop with one hot target the predictor learns it and the marginal cost is a couple of nanoseconds; with several targets in the same loop you get mispredicts at roughly 15–20 cycles each. The larger cost is usually indirect: the compiler cannot inline through it, so constant folding stops at the call, and a fan-out of tiny virtuals scatters your instruction cache.",
+          "level": "core",
+          "skill": "perf.virtual-cost"
         },
         {
           "q": "Why size an open-addressing hash table to a power of two, and what is the worst thing std::unordered_map can do to you on a hot path?",
