@@ -43,8 +43,8 @@ window.SKILLS = {
         "u1"
       ],
       "lab": {
-        "label": "Lab — Week 1",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+        "label": "Lab — Session 1 (labs/session01.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
       },
       "hw": {
         "label": "HW 1 — Order-book metrics in C++",
@@ -72,16 +72,16 @@ window.SKILLS = {
     {
       "n": 2,
       "date": "2026-10-05",
-      "title": "C++ Performance Foundations + Memory Management & Smart Pointers",
+      "title": "Pointers & the Cost of Memory",
       "decks": [
         "u2"
       ],
       "lab": {
-        "label": "Lab — Weeks 2 & 3 (run as one combined lab)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week02.md"
+        "label": "Lab — Session 2 (labs/session02.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
       },
       "hw": {
-        "label": "HW 2 — Pointers, references, smart pointers & RAII",
+        "label": "HW 2 — Pointers, references & the cost of a copy",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724",
         "due": "2026-10-15"
       },
@@ -93,30 +93,30 @@ window.SKILLS = {
       "exam": null,
       "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week2.html",
       "skills": [
-        "cpp.pointers",
-        "cpp.raw-allocation",
-        "cpp.raii",
-        "cpp.smart-pointers",
-        "cpp.move-semantics",
         "perf.memory-hierarchy",
-        "perf.branch-prediction",
+        "cpp.pointers",
+        "cpp.pass-by-reference",
+        "cpp.raw-allocation",
+        "perf.contiguous-layout",
+        "tools.sanitizers",
         "perf.cache-line-alignment",
-        "tools.benchmarking"
+        "tools.benchmarking",
+        "tools.replay-harness"
       ]
     },
     {
       "n": 3,
       "date": "2026-10-12",
-      "title": "Custom Allocators & Pools + Templates & Generic Programming",
+      "title": "Object-Oriented C++ I — Encapsulation & Inheritance",
       "decks": [
         "u3"
       ],
       "lab": {
-        "label": "Lab — Weeks 4 & 5 (week 4 in class, week 5 steps 3–4)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week04.md"
+        "label": "Lab — Session 3 (labs/session03.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
       },
       "hw": {
-        "label": "HW 3 — A high-performance memory pool (placement new)",
+        "label": "HW 3 — Classes, the Rule of Five & RAII",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725",
         "due": "2026-10-22"
       },
@@ -126,32 +126,31 @@ window.SKILLS = {
         "due": "2026-10-26"
       },
       "exam": null,
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week4.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week3.html",
       "skills": [
-        "perf.object-pool",
-        "cpp.placement-new",
-        "perf.arena-allocator",
-        "cpp.pmr",
-        "cpp.templates",
-        "cpp.variadic-templates",
-        "cpp.type-traits-constraints",
-        "cpp.virtual-dispatch",
-        "perf.virtual-cost"
+        "cpp.classes-invariants",
+        "cpp.rule-of-five",
+        "cpp.move-semantics",
+        "cpp.raii",
+        "cpp.operator-overloading",
+        "perf.object-layout",
+        "cpp.inheritance",
+        "cpp.raw-allocation"
       ]
     },
     {
       "n": 4,
       "date": "2026-10-19",
-      "title": "Compile-Time & CRTP + Data Structures — The Order Book",
+      "title": "Object-Oriented C++ II — Polymorphism & Smart Pointers",
       "decks": [
         "u4"
       ],
       "lab": {
-        "label": "Lab — Weeks 6 & 7 (week 6 step 5, then week 7)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week07.md"
+        "label": "Lab — Session 4 (labs/session04.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session04.md"
       },
       "hw": {
-        "label": "HW 4 — A fast order book + CRTP",
+        "label": "HW 4 — Polymorphism & smart ownership",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726",
         "due": "2026-10-29"
       },
@@ -161,32 +160,31 @@ window.SKILLS = {
         "due": "2026-10-26"
       },
       "exam": null,
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week6.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week5.html",
       "skills": [
-        "cpp.constexpr",
-        "cpp.crtp-policies",
+        "cpp.virtual-dispatch",
+        "perf.virtual-cost",
         "cpp.variant-visit",
-        "perf.open-addressing-hash",
-        "cpp.stl-containers",
-        "trading.flat-order-book",
-        "trading.queue-position",
-        "cpp.type-traits-constraints",
-        "perf.virtual-cost"
+        "cpp.smart-pointers",
+        "cpp.ownership-contracts",
+        "cpp.move-semantics",
+        "cpp.raii",
+        "cpp.inheritance"
       ]
     },
     {
       "n": 5,
       "date": "2026-10-26",
-      "title": "Complexity & Time-Series + Concurrency I · Midterm (remote)",
+      "title": "Templates, Compile-Time & CRTP · Midterm (remote)",
       "decks": [
         "u5"
       ],
       "lab": {
-        "label": "Lab — Weeks 8 & 9 (week 9 steps 1–4 in class)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week09.md"
+        "label": "Lab — Session 5 (labs/session05.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
       },
       "hw": {
-        "label": "HW 5 — Ring buffer & O(1) online stats",
+        "label": "HW 5 — Templates & CRTP",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727",
         "due": "2026-11-05"
       },
@@ -196,34 +194,68 @@ window.SKILLS = {
         "due": "2026-11-05"
       },
       "exam": "midterm",
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week8.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week6.html",
       "skills": [
-        "perf.complexity-in-cache-terms",
-        "perf.amortized-reserve",
-        "cpp.ring-buffer",
-        "perf.incremental-computation",
-        "trading.obi-signal",
-        "cpp.threads",
-        "cpp.data-races",
-        "cpp.atomics-memory-order",
-        "perf.lock-tail-cost"
+        "cpp.templates",
+        "cpp.variadic-templates",
+        "cpp.type-traits-constraints",
+        "cpp.constexpr",
+        "cpp.crtp-policies",
+        "perf.virtual-cost",
+        "cpp.variant-visit"
       ]
     },
     {
       "n": 6,
       "date": "2026-11-02",
-      "title": "Concurrency II — Lock-Free & Multi-Process",
+      "title": "Memory Pools & the Order Book",
       "decks": [
         "u6"
       ],
       "lab": {
-        "label": "Lab — Week 10",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week10.md"
+        "label": "Lab — Session 6 (labs/session06.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
       },
       "hw": {
-        "label": "HW 6 — An SPSC lock-free ring buffer",
+        "label": "HW 6 — A memory pool & a fast order book",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728",
         "due": "2026-11-12"
+      },
+      "project": {
+        "label": "Project — Phase 2: The Local Order Book",
+        "url": "https://canvas.uchicago.edu/courses/73835/assignments/898735",
+        "due": "2026-11-05"
+      },
+      "exam": null,
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week7.html",
+      "skills": [
+        "perf.object-pool",
+        "cpp.placement-new",
+        "perf.arena-allocator",
+        "cpp.stl-containers",
+        "perf.open-addressing-hash",
+        "trading.flat-order-book",
+        "trading.queue-position",
+        "perf.complexity-in-cache-terms",
+        "perf.incremental-computation",
+        "cpp.templates"
+      ]
+    },
+    {
+      "n": 7,
+      "date": "2026-11-09",
+      "title": "Concurrency — From Atomics to Lock-Free",
+      "decks": [
+        "u7"
+      ],
+      "lab": {
+        "label": "Lab — Session 7 (labs/session07.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
+      },
+      "hw": {
+        "label": "HW 7 — An SPSC lock-free ring buffer",
+        "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729",
+        "due": "2026-11-19"
       },
       "project": {
         "label": "Project — Phase 3: Threading to Accelerate",
@@ -231,67 +263,33 @@ window.SKILLS = {
         "due": "2026-11-12"
       },
       "exam": null,
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week10.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week9.html",
       "skills": [
+        "cpp.data-races",
+        "cpp.atomics-memory-order",
+        "perf.lock-tail-cost",
         "cpp.compare-and-swap",
-        "cpp.lock-free-guarantees",
         "perf.spsc-ring",
         "perf.back-pressure",
         "perf.shared-memory-ring",
         "cpp.cpp20-coordination",
         "tools.sanitizers",
-        "perf.cache-line-alignment",
-        "cpp.atomics-memory-order"
-      ]
-    },
-    {
-      "n": 7,
-      "date": "2026-11-09",
-      "title": "Network Protocols, Market Data & Async I/O",
-      "decks": [
-        "u7"
-      ],
-      "lab": {
-        "label": "Lab — Weeks 11 & 12 (run as one sitting)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week11.md"
-      },
-      "hw": {
-        "label": "HW 7 — Fast FIX parser + uint64→text",
-        "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729",
-        "due": "2026-11-19"
-      },
-      "project": {
-        "label": "Project — Phase 4: Multi-Process System with Shared-Memory Lock-Free IPC",
-        "url": "https://canvas.uchicago.edu/courses/73835/assignments/898737",
-        "due": "2026-11-19"
-      },
-      "exam": null,
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week11.html",
-      "skills": [
-        "trading.fix-protocol",
-        "trading.binary-market-data",
-        "perf.transport-choice",
-        "trading.feed-sequencing",
-        "tools.message-framing",
-        "perf.nonblocking-io",
-        "perf.zero-copy-parse",
-        "perf.batching-vs-latency",
-        "perf.shared-memory-ring"
+        "perf.cache-line-alignment"
       ]
     },
     {
       "n": 8,
       "date": "2026-11-16",
-      "title": "Low-Latency Design & Profiling the Tail",
+      "title": "The Wire & the Machine — Protocols, Async I/O, SIMD & Kernel Bypass",
       "decks": [
         "u8"
       ],
       "lab": {
-        "label": "Lab — Weeks 13 & 14 (run as one sitting)",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week13.md"
+        "label": "Lab — Session 8 (labs/session08.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
       },
       "hw": {
-        "label": "HW 8 — Build optimization & killing the tail",
+        "label": "HW 8 — Fast FIX parser + uint64→text",
         "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730",
         "due": "2026-12-01"
       },
@@ -301,29 +299,30 @@ window.SKILLS = {
         "due": "2026-12-01"
       },
       "exam": null,
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week13.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week11.html",
       "skills": [
-        "perf.prefetch",
+        "trading.fix-protocol",
+        "trading.binary-market-data",
+        "trading.feed-sequencing",
+        "tools.message-framing",
+        "perf.nonblocking-io",
+        "perf.zero-copy-parse",
         "perf.simd",
-        "perf.syscall-cost",
         "perf.kernel-bypass",
         "perf.cpu-pinning-numa",
-        "perf.hardware-timestamping",
-        "tools.perf-profiler",
-        "perf.tail-diagnosis",
-        "tools.compiler-flags"
+        "perf.hardware-timestamping"
       ]
     },
     {
       "n": 9,
       "date": "2026-11-30",
-      "title": "Latency Arbitrage, Multi-Venue & the Tournament · Final (Dec 8–11)",
+      "title": "The Tail & the Tournament — Profiling, Latency Arbitrage · Final (Dec 8–11)",
       "decks": [
         "u9"
       ],
       "lab": {
-        "label": "Lab — Week 15",
-        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week15.md"
+        "label": "Lab — Session 9 (labs/session09.md)",
+        "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
       },
       "hw": {
         "label": "HW 9 — Cross-venue stale-quote detector",
@@ -336,12 +335,14 @@ window.SKILLS = {
         "due": "2026-12-11"
       },
       "exam": "final",
-      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week15.html",
+      "companion_url": "https://sdonadio.github.io/low-latency-trading-arena/week14.html",
       "skills": [
+        "tools.perf-profiler",
+        "perf.tail-diagnosis",
+        "tools.compiler-flags",
         "trading.nbbo-latency-arb",
         "trading.smart-order-routing",
         "trading.market-making",
-        "trading.queue-aware-requoting",
         "trading.adverse-selection",
         "trading.hft-ethics",
         "trading.price-time-priority",
@@ -367,8 +368,8 @@ window.SKILLS = {
         {
           "type": "lab",
           "session": 1,
-          "label": "Lab week 1 · step 4 and the hand-computed book in Your turn",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+          "label": "Lab session 1 · step 4 and the hand-computed book in Your turn",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
         },
         {
           "type": "hw",
@@ -401,7 +402,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slide 10"
+          "label": "Deck U9 · slide 17"
         },
         {
           "type": "hw",
@@ -432,8 +433,8 @@ window.SKILLS = {
         {
           "type": "lab",
           "session": 1,
-          "label": "Lab week 1 · step 3 — the tick->order latency print",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+          "label": "Lab session 1 · step 3 — the tick->order latency print",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
         },
         {
           "type": "project",
@@ -464,8 +465,8 @@ window.SKILLS = {
         {
           "type": "lab",
           "session": 1,
-          "label": "Lab week 1 · step 3 — the FEE_SCHEDULE line",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+          "label": "Lab session 1 · step 3 — the FEE_SCHEDULE line",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
         }
       ],
       "interview": false
@@ -509,8 +510,8 @@ window.SKILLS = {
         {
           "type": "lab",
           "session": 1,
-          "label": "Lab week 1 · step 2 — build the arena C++ client",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+          "label": "Lab session 1 · step 2 — build the arena C++ client",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
         },
         {
           "type": "project",
@@ -537,8 +538,8 @@ window.SKILLS = {
         {
           "type": "lab",
           "session": 1,
-          "label": "Lab week 1 · step 3 — connect and get on the board",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week01.md"
+          "label": "Lab session 1 · step 3 — connect and get on the board",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session01.md"
         },
         {
           "type": "project",
@@ -554,13 +555,20 @@ window.SKILLS = {
       "name": "Offline replay & percentile reporting",
       "can": "You can replay a recorded tape through your bot offline and read the p50/p99/p99.9 table it prints, so an A/B change is measured rather than guessed.",
       "introduced": 1,
-      "practised": [],
+      "practised": [
+        2
+      ],
       "depth": 3,
       "where": [
         {
           "type": "deck",
           "session": 1,
           "label": "Deck U1 · slide 19"
+        },
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slide 35"
         },
         {
           "type": "project",
@@ -575,10 +583,10 @@ window.SKILLS = {
       "interview": false
     },
     {
-      "id": "cpp.pointers",
-      "category": "cpp",
-      "name": "Pointers, references & pointer arithmetic",
-      "can": "You can walk an array with a raw pointer, explain why p + 1 advances by sizeof(*p), and choose between a pointer and a reference by asking whether 'absent' is a legal answer.",
+      "id": "perf.memory-hierarchy",
+      "category": "perf",
+      "name": "The memory hierarchy, stack vs heap & storage duration",
+      "can": "You can put rough numbers on a register, L1, L2, L3 and DRAM access, explain why the stack is a nearly free bump pointer while the heap is a call into a service, and say which of the four storage durations a variable has.",
       "introduced": 2,
       "practised": [],
       "depth": 3,
@@ -586,17 +594,80 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 7–10"
+          "label": "Deck U2 · slides 5–7"
         },
         {
           "type": "lab",
           "session": 2,
-          "label": "Lab week 3 · steps 1 and 3 — the raw new/delete bug, then owning a raw buffer",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week03.md"
+          "label": "Lab session 2 · step 3 — stack vs heap, sink the pointer",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: Complexity, Cache & Performance Basics"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Cache Effects, False Sharing & Data Layout"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.pointers",
+      "category": "cpp",
+      "name": "Pointers, references & pointer arithmetic",
+      "can": "You can walk an array with a raw pointer, read a const-qualified pointer declaration right to left, explain why p + 1 advances by sizeof(*p) and where array decay loses the length, and choose between a pointer and a reference by asking whether 'absent' is a legal answer.",
+      "introduced": 2,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slides 9–14"
+        },
+        {
+          "type": "lab",
+          "session": 2,
+          "label": "Lab session 2 · step 2 — pointers, const and decay: read the errors",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
         },
         {
           "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
+          "label": "HW 2 — Pointers, references & the cost of a copy",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: Pointers, References & Memory Layout"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.pass-by-reference",
+      "category": "cpp",
+      "name": "The cost of a copy: by value vs const&",
+      "can": "You can predict what passing a large struct by value costs, default to const& for anything bigger than two words, keep small types by value, and build a benchmark the optimiser cannot elide the copy out of.",
+      "introduced": 2,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slide 15"
+        },
+        {
+          "type": "lab",
+          "session": 2,
+          "label": "Lab session 2 · step 7 — run starters/hw02 as shipped",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 2 — Pointers, references & the cost of a copy",
           "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
         },
         {
@@ -609,27 +680,34 @@ window.SKILLS = {
     {
       "id": "cpp.raw-allocation",
       "category": "cpp",
-      "name": "new / delete, the classic bugs & allocator non-determinism",
-      "can": "You can pair every new with its matching delete or delete[], name the four classic heap bugs, and explain why the same new call can take 20 ns or 20 µs and land in p99.9.",
+      "name": "malloc / calloc / new / delete, the classic bugs & allocator non-determinism",
+      "can": "You can pair every malloc/calloc with free, every new with delete and every new[] with delete[], name the five classic heap bugs, and explain why the same allocation can take 12 ns or microseconds and land in p99.9.",
       "introduced": 2,
-      "practised": [],
+      "practised": [
+        3
+      ],
       "depth": 3,
       "where": [
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 11–12, 25–27, 49"
+          "label": "Deck U2 · slides 17–19, 23, 25–26"
+        },
+        {
+          "type": "deck",
+          "session": 3,
+          "label": "Deck U3 · slides 12–13"
         },
         {
           "type": "lab",
           "session": 2,
-          "label": "Lab week 3 · step 1 — the raw new/delete bug, found on your own OS",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week03.md"
+          "label": "Lab session 2 · step 5 — memory bugs under a sanitizer",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
         },
         {
           "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
         },
         {
           "type": "exam",
@@ -643,10 +721,10 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "cpp.raii",
-      "category": "cpp",
-      "name": "RAII — scope-bound resource management",
-      "can": "You can wrap a resource in a type that acquires in its constructor and releases in its destructor, so cleanup happens on every exit path including a throw.",
+      "id": "perf.contiguous-layout",
+      "category": "perf",
+      "name": "Contiguous layout: one-block matrices, row-major order & SoA",
+      "can": "You can replace a double** matrix with one contiguous block indexed r*cols + c, keep the inner loop on the contiguous axis, and choose a struct-of-arrays layout so a hot scan streams whole cache lines instead of chasing pointers.",
       "introduced": 2,
       "practised": [],
       "depth": 3,
@@ -654,22 +732,173 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 2,
-          "label": "Deck U2 · slides 29–30, 35, 41"
+          "label": "Deck U2 · slides 20–22, 29"
         },
         {
           "type": "lab",
           "session": 2,
-          "label": "Lab week 3 · step 4 — a small RAII guard",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week03.md"
+          "label": "Lab session 2 · step 4 — contiguous vs pointer chase; row- vs column-major",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
         },
         {
           "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
+          "label": "HW 2 — Pointers, references & the cost of a copy",
           "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
         },
         {
           "type": "exam",
-          "label": "Midterm · group: Allocation, RAII & Smart Pointers"
+          "label": "Midterm · group: Complexity, Cache & Performance Basics"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Cache Effects, False Sharing & Data Layout"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "tools.sanitizers",
+      "category": "tools",
+      "name": "Finding bugs with ASan, UBSan, leaks & ThreadSanitizer",
+      "can": "You can build a -O0 -g binary with AddressSanitizer (and UBSan, or ThreadSanitizer for a threaded one), read the report down to the offending line, find a leak with LSan on Linux or leaks --atExit on macOS, and treat a clean run as evidence about one input rather than proof.",
+      "introduced": 2,
+      "practised": [
+        7
+      ],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slides 23–24"
+        },
+        {
+          "type": "deck",
+          "session": 7,
+          "label": "Deck U7 · slide 6"
+        },
+        {
+          "type": "lab",
+          "session": 2,
+          "label": "Lab session 2 · step 5 — memory bugs under a sanitizer",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
+        },
+        {
+          "type": "lab",
+          "session": 7,
+          "label": "Lab session 7 · part A — the race under TSan",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Measurement, Tail Latency & Production Practice"
+        }
+      ],
+      "interview": false
+    },
+    {
+      "id": "perf.cache-line-alignment",
+      "category": "perf",
+      "name": "The 64-byte cache line, alignment & false sharing",
+      "can": "You can pack the fields a hot function reads onto one 64-byte cache line, use alignas to stop a hot object straddling two of them, and recognise false sharing from a threaded version being slower than a single-threaded one.",
+      "introduced": 2,
+      "practised": [
+        7
+      ],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slides 28, 30"
+        },
+        {
+          "type": "deck",
+          "session": 7,
+          "label": "Deck U7 · slide 20"
+        },
+        {
+          "type": "lab",
+          "session": 2,
+          "label": "Lab session 2 · step 6 — false sharing and alignas(64)",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: Complexity, Cache & Performance Basics"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Cache Effects, False Sharing & Data Layout"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "tools.benchmarking",
+      "category": "tools",
+      "name": "Honest micro-benchmarking & percentiles",
+      "can": "You can time a hot function with steady_clock in a -O2 build, warm up first, sink the result so the optimiser cannot delete the work, batch tiny operations, and report p50/p99/p99.9 with your machine stated rather than one mean.",
+      "introduced": 2,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 2,
+          "label": "Deck U2 · slides 32–34"
+        },
+        {
+          "type": "lab",
+          "session": 2,
+          "label": "Lab session 2 · step 1 — an honest micro-benchmark, and a dishonest one",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session02.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 2 — Pointers, references & the cost of a copy",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
+        },
+        {
+          "type": "project",
+          "label": "Project — Phase 0: Connect & Baseline",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898733"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Measurement, Tail Latency & Production Practice"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.classes-invariants",
+      "category": "cpp",
+      "name": "Classes, access control & invariants",
+      "can": "You can write a class whose private data is checked once in the constructor, initialise members in the member-initialiser list in declaration order, mark one-argument constructors explicit, and make every observer a const member function.",
+      "introduced": 3,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 3,
+          "label": "Deck U3 · slides 5–10"
+        },
+        {
+          "type": "lab",
+          "session": 3,
+          "label": "Lab session 3 · step 1 — Order: an invariant, const, private data",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: OOP, Virtual Dispatch & Object Model"
         },
         {
           "type": "exam",
@@ -679,29 +908,29 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "cpp.smart-pointers",
+      "id": "cpp.rule-of-five",
       "category": "cpp",
-      "name": "unique_ptr, shared_ptr, weak_ptr",
-      "can": "You can own an object with unique_ptr by default, justify shared_ptr only for genuinely shared lifetime, and say why its atomic refcount does not belong on a hot path.",
-      "introduced": 2,
+      "name": "Copy semantics & the Rule of Three / Five / Zero",
+      "can": "You can say when the compiler's member-by-member copy is right and when it is a double free, write a deep-copying, self-assignment-safe copy constructor and copy assignment, and pick between the Rule of Zero, the Rule of Five and = delete for a given type.",
+      "introduced": 3,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slides 37–39"
+          "session": 3,
+          "label": "Deck U3 · slides 12–13, 17"
         },
         {
           "type": "lab",
-          "session": 2,
-          "label": "Lab week 3 · steps 2 and 5 — unique_ptr and the refcount tax",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week03.md"
+          "session": 3,
+          "label": "Lab session 3 · step 3 — PxBuf: the Rule of Three, and the double free under ASan",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
         },
         {
           "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
         },
         {
           "type": "exam",
@@ -717,27 +946,34 @@ window.SKILLS = {
     {
       "id": "cpp.move-semantics",
       "category": "cpp",
-      "name": "Move semantics, std::move & the rule of five",
-      "can": "You can write a noexcept move constructor that steals and then blanks the source, say what std::move actually does at the call site, and decide whether a type needs none or all five special members.",
-      "introduced": 2,
-      "practised": [],
+      "name": "lvalues, rvalues, std::move & noexcept moves",
+      "can": "You can tell an lvalue from an rvalue, say that std::move is only a cast, write a noexcept move constructor that steals and then blanks the source, and explain why vector copies every element on growth when the move is not noexcept.",
+      "introduced": 3,
+      "practised": [
+        4
+      ],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slides 31–33, 40"
+          "session": 3,
+          "label": "Deck U3 · slides 14–16"
+        },
+        {
+          "type": "deck",
+          "session": 4,
+          "label": "Deck U4 · slide 25"
         },
         {
           "type": "lab",
-          "session": 2,
-          "label": "Lab week 3 · step 3 — the Rule of Three (and Five)",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week03.md"
+          "session": 3,
+          "label": "Lab session 3 · step 4 — Rule of Five: noexcept and vector growth",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
         },
         {
           "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
         },
         {
           "type": "exam",
@@ -751,24 +987,93 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "perf.memory-hierarchy",
+      "id": "cpp.raii",
+      "category": "cpp",
+      "name": "RAII — scope-bound resource management",
+      "can": "You can wrap a resource in a type that acquires in its constructor and releases in its destructor, delete its copies so it has one owner, and rely on reverse-order destruction for cleanup on every exit path including a throw.",
+      "introduced": 3,
+      "practised": [
+        4
+      ],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 3,
+          "label": "Deck U3 · slides 9, 21–22"
+        },
+        {
+          "type": "deck",
+          "session": 4,
+          "label": "Deck U4 · slide 23"
+        },
+        {
+          "type": "lab",
+          "session": 3,
+          "label": "Lab session 3 · step 5 — ScopedTimer: RAII on every exit path",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: Allocation, RAII & Smart Pointers"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Core C++: Memory, RAII & Object Model"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.operator-overloading",
+      "category": "cpp",
+      "name": "Operator overloading — the useful subset",
+      "can": "You can overload operator==, operator< (or default operator<=>), operator() and a free operator<< where their meaning is obvious, so sort, containers and algorithms pick your type up, and name a function everywhere else.",
+      "introduced": 3,
+      "practised": [],
+      "depth": 1,
+      "where": [
+        {
+          "type": "deck",
+          "session": 3,
+          "label": "Deck U3 · slide 19"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Core C++: Memory, RAII & Object Model"
+        }
+      ],
+      "interview": false
+    },
+    {
+      "id": "perf.object-layout",
       "category": "perf",
-      "name": "The memory hierarchy, stack vs heap & data layout",
-      "can": "You can put rough numbers on a register, L1, L2, L3 and DRAM access, explain why the stack is a nearly free bump pointer, and choose a contiguous or SoA layout so a hot loop streams instead of pointer-chasing.",
-      "introduced": 2,
+      "name": "Object layout: sizeof, padding & member order",
+      "can": "You can predict a struct's sizeof and alignof from its members, reorder fields widest-first to remove padding, and static_assert the size and trivial copyability of a hot-path type so a stray std::string breaks the build.",
+      "introduced": 3,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slides 5–6, 13–15"
+          "session": 3,
+          "label": "Deck U3 · slides 20, 23"
         },
         {
           "type": "lab",
-          "session": 2,
-          "label": "Lab week 2 · steps 2–3 — stack vs heap, then cache-friendly vs pointer-chasing",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week02.md"
+          "session": 3,
+          "label": "Lab session 3 · step 6 — layout: sizeof, padding, static_assert",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
         },
         {
           "type": "exam",
@@ -782,282 +1087,10 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "perf.branch-prediction",
-      "category": "perf",
-      "name": "Branch prediction & the pipeline",
-      "can": "You can explain what a mispredicted branch costs on a deep pipeline and name ways to make a hot branch predictable or remove it.",
-      "introduced": 2,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slide 16"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Branch Prediction, SIMD & Compiler Optimisation"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "perf.cache-line-alignment",
-      "category": "perf",
-      "name": "The 64-byte cache line, alignment & false sharing",
-      "can": "You can pack the fields a hot function reads onto one 64-byte cache line, use alignas to stop a hot object straddling two of them, and recognise false sharing from a threaded version being slower than a single-threaded one.",
-      "introduced": 2,
-      "practised": [
-        6
-      ],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slides 18–19, 51"
-        },
-        {
-          "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slide 9"
-        },
-        {
-          "type": "lab",
-          "session": 2,
-          "label": "Lab week 2 · step 4 — alignas(64) kills false sharing",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week02.md"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Cache Effects, False Sharing & Data Layout"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "tools.benchmarking",
-      "category": "tools",
-      "name": "Honest micro-benchmarking & percentiles",
-      "can": "You can time a hot function with steady_clock in a release build, warm up first, keep the optimiser from deleting the work, and report percentiles rather than one mean.",
-      "introduced": 2,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 2,
-          "label": "Deck U2 · slides 21–23"
-        },
-        {
-          "type": "lab",
-          "session": 2,
-          "label": "Lab week 2 · step 1 — your first honest micro-benchmark",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week02.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 2 — Pointers, references, smart pointers & RAII",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898724"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Measurement, Tail Latency & Production Practice"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "perf.object-pool",
-      "category": "perf",
-      "name": "Fixed-size object pools",
-      "can": "You can implement a fixed-size object pool whose free slots hold the free-list, so allocate and free are O(1) pointer swaps that never call the system allocator.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 8, 10, 35"
-        },
-        {
-          "type": "lab",
-          "session": 3,
-          "label": "Lab week 4 · steps 3–4 — alloc and free in O(1)",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week04.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 1: The Fast Hot Path",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898734"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "cpp.placement-new",
+      "id": "cpp.inheritance",
       "category": "cpp",
-      "name": "Placement new & explicit destruction",
-      "can": "You can construct an object into storage you already own with placement new, and destroy it by calling its destructor explicitly before reusing the slot.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 9–10"
-        },
-        {
-          "type": "lab",
-          "session": 3,
-          "label": "Lab week 4 · step 5 — placement new + explicit dtor",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week04.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: Allocation, RAII & Smart Pointers"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "perf.arena-allocator",
-      "category": "perf",
-      "name": "Arena / bump allocation and per-tick scratch",
-      "can": "You can allocate a tick's scratch from a bump pointer over a pre-owned slab, align each request, and reclaim everything with one O(1) reset.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 9, 13, 34"
-        },
-        {
-          "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 1: The Fast Hot Path",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898734"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "cpp.pmr",
-      "category": "cpp",
-      "name": "std::pmr memory resources",
-      "can": "You can hand a standard container your own memory by constructing a pmr container over a monotonic_buffer_resource on a stack buffer.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 12–13"
-        },
-        {
-          "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "cpp.templates",
-      "category": "cpp",
-      "name": "Function & class templates",
-      "can": "You can write a function or class template, let the compiler deduce its arguments, specialise the one type that deserves hand-tuning, and say why templates live in headers.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 15–17"
-        },
-        {
-          "type": "lab",
-          "session": 3,
-          "label": "Lab week 5 · steps 1–2 — a code stamp and a generic container",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week05.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: Templates, CRTP & Compile-Time"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Templates, STL & Complexity"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "cpp.variadic-templates",
-      "category": "cpp",
-      "name": "Parameter packs, folds & perfect forwarding",
-      "can": "You can take an arbitrary argument list with a parameter pack, collapse it with a fold expression, and forward each argument on without adding a copy.",
-      "introduced": 3,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 19–20, 36"
-        },
-        {
-          "type": "lab",
-          "session": 3,
-          "label": "Lab week 5 · step 3 — variadic template + fold expression",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week05.md"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: Templates, CRTP & Compile-Time"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "cpp.type-traits-constraints",
-      "category": "cpp",
-      "name": "Type traits, SFINAE, if constexpr & concepts",
-      "can": "You can ask a question about a type at compile time and use the answer to select or reject an overload — with enable_if, if constexpr, or a named C++20 concept.",
+      "name": "Inheritance without virtual: access, construction order, slicing & hiding",
+      "can": "You can state the construction and destruction order of a derived object with members, choose public inheritance only for a true is-a and composition otherwise, spot slicing when a derived object is copied into a base by value, and explain how a derived name hides every base overload.",
       "introduced": 3,
       "practised": [
         4
@@ -1067,44 +1100,59 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 3,
-          "label": "Deck U3 · slides 21–23"
+          "label": "Deck U3 · slides 25–31"
         },
         {
           "type": "deck",
           "session": 4,
-          "label": "Deck U4 · slides 8–9"
+          "label": "Deck U4 · slides 5, 7"
         },
         {
           "type": "lab",
           "session": 3,
-          "label": "Lab week 5 · steps 4–5 — if constexpr and SFINAE",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week05.md"
+          "label": "Lab session 3 · steps 2 and 7 — construction order; slicing, name hiding, static binding",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session03.md"
         },
         {
           "type": "hw",
-          "label": "HW 3 — A high-performance memory pool (placement new)",
+          "label": "HW 3 — Classes, the Rule of Five & RAII",
           "url": "https://canvas.uchicago.edu/courses/73835/assignments/898725"
         },
         {
           "type": "exam",
-          "label": "Midterm · group: Templates, CRTP & Compile-Time"
+          "label": "Midterm · group: OOP, Virtual Dispatch & Object Model"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Core C++: Memory, RAII & Object Model"
         }
       ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "cpp.virtual-dispatch",
       "category": "cpp",
-      "name": "Inheritance, virtual functions & abstract interfaces",
-      "can": "You can define an abstract interface with pure virtual functions and a virtual destructor, use override and final correctly, and spot the slicing and delete-through-a-non-virtual-base bugs.",
-      "introduced": 3,
+      "name": "Virtual functions, override/final & abstract interfaces",
+      "can": "You can make a call through a Base& run the derived body with virtual and override, give every polymorphic base a virtual destructor, write an abstract interface of pure virtuals, and name the three things dynamic dispatch does not change: default arguments, overload sets and name lookup.",
+      "introduced": 4,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 24–26, 29, 31"
+          "session": 4,
+          "label": "Deck U4 · slides 5–8, 11"
+        },
+        {
+          "type": "lab",
+          "session": 4,
+          "label": "Lab session 4 · steps 1–3 — an IStrategy interface and a broken override, delete through a base, the vptr in a constructor",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session04.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 4 — Polymorphism & smart ownership",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
         },
         {
           "type": "exam",
@@ -1120,33 +1168,112 @@ window.SKILLS = {
     {
       "id": "perf.virtual-cost",
       "category": "perf",
-      "name": "Virtual dispatch and what it costs",
-      "can": "You can describe the vptr/vtable indirection behind a virtual call, explain that the real bill is the indirect branch and the inlining you lose, and say where a virtual still belongs in a trading system.",
-      "introduced": 3,
+      "name": "The vptr, the vtable & what a virtual call costs",
+      "can": "You can explain a virtual call as two dependent loads and an indirect branch, quote its measured cost when predicted and when mispredicted, and say why the inlining it blocks is the bigger bill.",
+      "introduced": 4,
       "practised": [
-        4
+        5
       ],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 3,
-          "label": "Deck U3 · slides 27–28, 30, 33"
+          "session": 4,
+          "label": "Deck U4 · slides 10, 12–14"
         },
         {
           "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slide 11"
+          "session": 5,
+          "label": "Deck U5 · slide 18"
         },
         {
           "type": "lab",
           "session": 4,
-          "label": "Lab week 6 · steps 1–2 — the virtual baseline, then CRTP against it",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week06.md"
+          "label": "Lab session 4 · step 4 — make dispatch, your table next to slide 13",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session04.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 4 — Polymorphism & smart ownership",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
         },
         {
           "type": "exam",
           "label": "Midterm · group: OOP, Virtual Dispatch & Object Model"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Branch Prediction, SIMD & Compiler Optimisation"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.variant-visit",
+      "category": "cpp",
+      "name": "A closed set: std::variant + std::visit",
+      "can": "You can model a closed set of message types as a std::variant stored by value, dispatch it with an exhaustive std::visit visitor, and say when that beats a virtual hierarchy and when it does not.",
+      "introduced": 4,
+      "practised": [
+        5
+      ],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 4,
+          "label": "Deck U4 · slides 14–15"
+        },
+        {
+          "type": "deck",
+          "session": 5,
+          "label": "Deck U5 · slide 11"
+        },
+        {
+          "type": "hw",
+          "label": "HW 4 — Polymorphism & smart ownership",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
+        },
+        {
+          "type": "project",
+          "label": "Project — Phase 1: The Fast Hot Path",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898734"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.smart-pointers",
+      "category": "cpp",
+      "name": "unique_ptr, shared_ptr, weak_ptr",
+      "can": "You can own an object with unique_ptr by default, justify shared_ptr only for genuinely shared lifetime, explain why its tax is the atomic copy and not the dereference, and break an ownership cycle with weak_ptr.",
+      "introduced": 4,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 4,
+          "label": "Deck U4 · slides 18–22"
+        },
+        {
+          "type": "lab",
+          "session": 4,
+          "label": "Lab session 4 · steps 5–6 — sizes and allocation counts, the shared_ptr tax, contention and a weak_ptr cycle",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session04.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 4 — Polymorphism & smart ownership",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
+        },
+        {
+          "type": "exam",
+          "label": "Midterm · group: Allocation, RAII & Smart Pointers"
         },
         {
           "type": "exam",
@@ -1156,10 +1283,10 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "cpp.constexpr",
+      "id": "cpp.ownership-contracts",
       "category": "cpp",
-      "name": "constexpr, consteval & static_assert",
-      "can": "You can compute a lookup table at compile time, check an assumption with static_assert so a violated invariant fails the build, and say what consteval forbids.",
+      "name": "Custom deleters & ownership as an API contract",
+      "can": "You can wrap any resource with a close in a unique_ptr with a stateless custom deleter, state ownership in a signature (sink by value, borrow by reference, source by return), and build polymorphic parts once at startup so on_book only ever borrows.",
       "introduced": 4,
       "practised": [],
       "depth": 3,
@@ -1167,22 +1294,162 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 4,
-          "label": "Deck U4 · slides 5–6"
+          "label": "Deck U4 · slides 19, 23, 25–28"
         },
         {
           "type": "lab",
           "session": 4,
-          "label": "Lab week 6 · step 3 — a constexpr lookup table",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week06.md"
+          "label": "Lab session 4 · steps 7–8 — count your on_book allocations with tick_alloc, then own an ISignal chosen at startup",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session04.md"
         },
         {
           "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
+          "label": "HW 4 — Polymorphism & smart ownership",
           "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
         },
         {
+          "type": "project",
+          "label": "Project — Phase 1: The Fast Hot Path",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898734"
+        },
+        {
           "type": "exam",
-          "label": "Midterm · group: Templates, CRTP & Compile-Time"
+          "label": "Midterm · group: Allocation, RAII & Smart Pointers"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.templates",
+      "category": "cpp",
+      "name": "Function & class templates",
+      "can": "You can write a function or class template with a type and a non-type parameter, let the compiler deduce its arguments, specialise the one type that deserves hand-tuning, and say why templates live in headers and what every extra instantiation costs in code size.",
+      "introduced": 5,
+      "practised": [
+        6
+      ],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 5,
+          "label": "Deck U5 · slides 6–8"
+        },
+        {
+          "type": "deck",
+          "session": 6,
+          "label": "Deck U6 · slide 9"
+        },
+        {
+          "type": "lab",
+          "session": 5,
+          "label": "Lab session 5 · steps 1–2 — Ring<T, N>, two deliberate compile errors, Wire<T> specializations",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 5 — Templates & CRTP",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.variadic-templates",
+      "category": "cpp",
+      "name": "Parameter packs, folds & perfect forwarding",
+      "can": "You can write a variadic template that folds over its pack in one line, forward every argument unchanged with std::forward, and build the overload{} visitor from a pack of lambdas.",
+      "introduced": 5,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 5,
+          "label": "Deck U5 · slides 10–11"
+        },
+        {
+          "type": "lab",
+          "session": 5,
+          "label": "Lab session 5 · step 3 — folds, if constexpr and the overload{} visitor",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 5 — Templates & CRTP",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
+        }
+      ],
+      "interview": false
+    },
+    {
+      "id": "cpp.type-traits-constraints",
+      "category": "cpp",
+      "name": "Type traits, concepts & if constexpr",
+      "can": "You can ask the compiler questions about a type with <type_traits>, constrain a template with a C++20 concept instead of SFINAE so the error names the failed requirement, and give one template a separate code path per type with if constexpr.",
+      "introduced": 5,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 5,
+          "label": "Deck U5 · slides 12–14"
+        },
+        {
+          "type": "lab",
+          "session": 5,
+          "label": "Lab session 5 · steps 3–4 — if constexpr, then SFINAE next to a concept",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 5 — Templates & CRTP",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.constexpr",
+      "category": "cpp",
+      "name": "constexpr, consteval & static_assert",
+      "can": "You can move a table or a constant into the compiler with constexpr, force compile-time evaluation with consteval, and park every size, fee and layout assumption in a static_assert so a violation fails the build instead of the market.",
+      "introduced": 5,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 5,
+          "label": "Deck U5 · slide 16"
+        },
+        {
+          "type": "lab",
+          "session": 5,
+          "label": "Lab session 5 · step 5 — consteval fees and a compile-time tick table",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 5 — Templates & CRTP",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
         }
       ],
       "interview": true
@@ -1191,30 +1458,26 @@ window.SKILLS = {
       "id": "cpp.crtp-policies",
       "category": "cpp",
       "name": "CRTP & policy-based design",
-      "can": "You can replace a virtual hierarchy with a base templated on its derived type, and compose behaviour from policy template parameters that cost nothing at run time.",
-      "introduced": 4,
+      "can": "You can replace a virtual hook with a CRTP base that calls down through static_cast, show with dispatch_bench and the -O2 assembly that the indirect branch is gone, and assemble a class from policy template parameters.",
+      "introduced": 5,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slides 11–12"
+          "session": 5,
+          "label": "Deck U5 · slides 17–19"
         },
         {
           "type": "lab",
-          "session": 4,
-          "label": "Lab week 6 · steps 2 and 4 — CRTP and policies",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week06.md"
+          "session": 5,
+          "label": "Lab session 5 · steps 6–7 — the CRTP row in dispatch_bench, then a policy-based Quoter",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session05.md"
         },
         {
           "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: Templates, CRTP & Compile-Time"
+          "label": "HW 5 — Templates & CRTP",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
         },
         {
           "type": "exam",
@@ -1224,29 +1487,124 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "cpp.variant-visit",
+      "id": "perf.object-pool",
+      "category": "perf",
+      "name": "Fixed-size object pools",
+      "can": "You can implement a fixed-size object pool whose free slots hold the free-list, so allocate and free are O(1) pointer swaps that never call the system allocator, and defend its number as stable rather than merely small.",
+      "introduced": 6,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 6,
+          "label": "Deck U6 · slides 5–6, 8–10, 13"
+        },
+        {
+          "type": "lab",
+          "session": 6,
+          "label": "Lab session 6 · Part A — steps A2–A6, all four pool tests green",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 6 — A memory pool & a fast order book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+        },
+        {
+          "type": "project",
+          "label": "Project — Phase 2: The Local Order Book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898735"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "cpp.placement-new",
       "category": "cpp",
-      "name": "std::variant + compile-time visitor dispatch",
-      "can": "You can mirror a tagged wire union as a std::variant and dispatch it with a visitor whose dead branches are discarded at compile time — no vtable, no allocation.",
-      "introduced": 4,
+      "name": "Placement new & explicit destruction",
+      "can": "You can construct an object into aligned storage you already own with placement new, end its life with an explicit destructor call, and hand the slot back to the pool — never to delete.",
+      "introduced": 6,
       "practised": [],
       "depth": 2,
       "where": [
         {
           "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slides 21, 23"
+          "session": 6,
+          "label": "Deck U6 · slides 7, 9"
         },
         {
           "type": "lab",
-          "session": 4,
-          "label": "Lab week 6 · step 5 — variant + visitor dispatch",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week06.md"
+          "session": 6,
+          "label": "Lab session 6 · step A5 — placement new + explicit destructor through your pool",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
         },
         {
-          "type": "project",
-          "label": "Project — Phase 1: The Fast Hot Path",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898734"
+          "type": "hw",
+          "label": "HW 6 — A memory pool & a fast order book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Core C++: Memory, RAII & Object Model"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "perf.arena-allocator",
+      "category": "perf",
+      "name": "Arena (bump) allocation & std::pmr",
+      "can": "You can allocate a tick's scratch from a bump pointer over a pre-owned slab, align each request, reclaim everything with one O(1) reset, and get the same from std::pmr::monotonic_buffer_resource with a null upstream.",
+      "introduced": 6,
+      "practised": [],
+      "depth": 2,
+      "where": [
+        {
+          "type": "deck",
+          "session": 6,
+          "label": "Deck U6 · slides 11–12, 34"
+        },
+        {
+          "type": "lab",
+          "session": 6,
+          "label": "Lab session 6 · step D1 — a bump allocator with reset(), timed against the pool",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
+        }
+      ],
+      "interview": false
+    },
+    {
+      "id": "cpp.stl-containers",
+      "category": "cpp",
+      "name": "Choosing a container for an access pattern",
+      "can": "You can match ordered traversal, best-element access and point lookup to a tree, a heap and a hash table, and say what each costs in allocations and cache misses rather than only in big-O.",
+      "introduced": 6,
+      "practised": [],
+      "depth": 2,
+      "where": [
+        {
+          "type": "deck",
+          "session": 6,
+          "label": "Deck U6 · slides 15, 17"
+        },
+        {
+          "type": "lab",
+          "session": 6,
+          "label": "Lab session 6 · step B1 — why not std::map<double, Level>?",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Templates, STL & Complexity"
         }
       ],
       "interview": false
@@ -1255,94 +1613,26 @@ window.SKILLS = {
       "id": "perf.open-addressing-hash",
       "category": "perf",
       "name": "Open-addressing hash maps",
-      "can": "You can implement a flat open-addressing hash map with a power-of-two mask and linear probing, and explain why it beats a chaining map in cache.",
-      "introduced": 4,
+      "can": "You can implement a linear-probing hash map in one flat power-of-two array, keep its load factor under about 0.7, and explain why it beats std::unordered_map's chained heap nodes on a hot path.",
+      "introduced": 6,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slides 14–15"
+          "session": 6,
+          "label": "Deck U6 · slides 16, 23"
         },
         {
           "type": "lab",
-          "session": 4,
-          "label": "Lab week 7 · step 7 — SymMap, open addressing",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week07.md"
+          "session": 6,
+          "label": "Lab session 6 · step B7 — SymMap: open addressing, no per-lookup allocation",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
         },
         {
           "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "cpp.stl-containers",
-      "category": "cpp",
-      "name": "Choosing an STL container for an access pattern",
-      "can": "You can choose between std::map, std::unordered_map and a heap for ordered iteration, point lookup or best-element access, and state the cache cost of each.",
-      "introduced": 4,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slide 16"
-        },
-        {
-          "type": "lab",
-          "session": 4,
-          "label": "Lab week 7 · step 1 — why not just std::map",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week07.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: STL Containers & Algorithms"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Templates, STL & Complexity"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "trading.flat-order-book",
-      "category": "trading",
-      "name": "A flat, price-indexed local order book",
-      "can": "You can mirror an exchange book as a contiguous price-indexed level array with a cached top-of-book, so add, cancel and reading the touch stay O(1).",
-      "introduced": 4,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slides 17–19, 24"
-        },
-        {
-          "type": "lab",
-          "session": 4,
-          "label": "Lab week 7 · steps 2–6 — the level array, best_bid/best_ask, cancel",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week07.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
+          "label": "HW 6 — A memory pool & a fast order book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
         },
         {
           "type": "project",
@@ -1354,14 +1644,51 @@ window.SKILLS = {
           "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
         }
       ],
-      "interview": false
+      "interview": true
+    },
+    {
+      "id": "trading.flat-order-book",
+      "category": "trading",
+      "name": "A flat, price-indexed local order book",
+      "can": "You can hold a book as a price-indexed band of tick slots against a base tick with a cached touch, bounds-check both ends, and explain why an absolute index silently corrupts the other side for a $720 name.",
+      "introduced": 6,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 6,
+          "label": "Deck U6 · slides 17–20, 23"
+        },
+        {
+          "type": "lab",
+          "session": 6,
+          "label": "Lab session 6 · steps B2–B6, then the NFLX band test in step D2",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 6 — A memory pool & a fast order book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+        },
+        {
+          "type": "project",
+          "label": "Project — Phase 2: The Local Order Book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898735"
+        },
+        {
+          "type": "exam",
+          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
+        }
+      ],
+      "interview": true
     },
     {
       "id": "trading.queue-position",
       "category": "trading",
-      "name": "Tracking your queue position",
-      "can": "You can track how much size rests ahead of your order at a price level and use that queue_ahead to judge your fill probability.",
-      "introduced": 4,
+      "name": "FIFO per level & your queue position",
+      "can": "You can keep each price level as an O(1) intrusive FIFO of pooled orders, track your queue_ahead from on_ack / on_queue, and explain why a reprice sends you to the back.",
+      "introduced": 6,
       "practised": [
         9
       ],
@@ -1369,18 +1696,13 @@ window.SKILLS = {
       "where": [
         {
           "type": "deck",
-          "session": 4,
-          "label": "Deck U4 · slides 20, 22"
+          "session": 6,
+          "label": "Deck U6 · slides 21–22"
         },
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slide 10"
-        },
-        {
-          "type": "hw",
-          "label": "HW 4 — A fast order book + CRTP",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898726"
+          "label": "Deck U9 · slide 17"
         },
         {
           "type": "project",
@@ -1392,31 +1714,27 @@ window.SKILLS = {
           "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
         }
       ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "perf.complexity-in-cache-terms",
       "category": "perf",
       "name": "Complexity counted in cache misses",
-      "can": "You can argue about cost in memory accesses rather than instructions, and show why a linear scan over a small contiguous array beats an O(log n) walk over heap nodes.",
-      "introduced": 5,
+      "can": "You can explain why an O(n) scan of a small contiguous array beats an O(log n) tree, treat amortized O(1) as a worst-case tail event that reserve() removes, and measure the crossover on your own machine.",
+      "introduced": 6,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 5–7"
+          "session": 6,
+          "label": "Deck U6 · slides 25, 37"
         },
         {
           "type": "lab",
-          "session": 5,
-          "label": "Lab week 8 · step 1 — the complexity framing",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week08.md"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: Complexity, Cache & Performance Basics"
+          "session": 6,
+          "label": "Lab session 6 · Part C — make bench-alloc and make bench-book on your machine",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
         },
         {
           "type": "exam",
@@ -1426,54 +1744,29 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "perf.amortized-reserve",
+      "id": "perf.incremental-computation",
       "category": "perf",
-      "name": "Amortized cost & reserving up front",
-      "can": "You can explain why vector push_back is O(1) amortized and why reserving up front removes the occasional reallocation from your tail.",
-      "introduced": 5,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 5, 7"
-        },
-        {
-          "type": "exam",
-          "label": "Midterm · group: STL Containers & Algorithms"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Measurement, Tail Latency & Production Practice"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "cpp.ring-buffer",
-      "category": "cpp",
-      "name": "A fixed-capacity ring buffer",
-      "can": "You can implement a fixed-capacity ring buffer over inline array storage with O(1) push, overwriting or expiring the oldest entry and never allocating.",
-      "introduced": 5,
+      "name": "Ring buffers & O(1) online statistics",
+      "can": "You can keep the recent tape in a power-of-two ring buffer and fold each tick into a running mean, Welford variance and EMA in O(1), so the signal costs the same on every tick.",
+      "introduced": 6,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 9–10"
+          "session": 6,
+          "label": "Deck U6 · slides 26–27, 35"
         },
         {
           "type": "lab",
-          "session": 5,
-          "label": "Lab week 8 · steps 2–5 — a ring of timestamps",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week08.md"
+          "session": 6,
+          "label": "Lab session 6 · step D3 — the ring buffer and Welford, checked by hand",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session06.md"
         },
         {
-          "type": "hw",
-          "label": "HW 5 — Ring buffer & O(1) online stats",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+          "type": "project",
+          "label": "Project — Phase 2: The Local Order Book",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898735"
         },
         {
           "type": "exam",
@@ -1483,115 +1776,24 @@ window.SKILLS = {
       "interview": false
     },
     {
-      "id": "perf.incremental-computation",
-      "category": "perf",
-      "name": "Update, don't recompute",
-      "can": "You can replace a windowed recompute with an online update — a running mean, Welford variance or EMA — so every tick costs the same O(1) and the tail stays flat.",
-      "introduced": 5,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 12–13"
-        },
-        {
-          "type": "lab",
-          "session": 5,
-          "label": "Lab week 8 · step 7 — Welford's online mean/variance",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week08.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 5 — Ring buffer & O(1) online stats",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Measurement, Tail Latency & Production Practice"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "trading.obi-signal",
-      "category": "trading",
-      "name": "Turning microprice and imbalance into a signal",
-      "can": "You can fold microprice and order-book imbalance into online state and gate an order on a z-score, without looping a window on the hot path.",
-      "introduced": 5,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 22–23"
-        },
-        {
-          "type": "hw",
-          "label": "HW 5 — Ring buffer & O(1) online stats",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 2: The Local Order Book",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898735"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "cpp.threads",
-      "category": "cpp",
-      "name": "std::thread and shared state",
-      "can": "You can start and join a std::thread and say which state is private to a thread and which is shared through the address space.",
-      "introduced": 5,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slide 15"
-        },
-        {
-          "type": "lab",
-          "session": 5,
-          "label": "Lab week 9 · step 1 — reproduce the race",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week09.md"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Threads, Mutexes & Condition Variables"
-        }
-      ],
-      "interview": false
-    },
-    {
       "id": "cpp.data-races",
       "category": "cpp",
-      "name": "Data races & happens-before",
-      "can": "You can identify a data race, explain that it is undefined behaviour rather than merely a wrong value, and name the happens-before edge that would make the access legal.",
-      "introduced": 5,
+      "name": "std::thread, data races & happens-before",
+      "can": "You can start and join threads, identify a data race as undefined behaviour rather than merely a wrong value, and name the happens-before edge — a mutex, an atomic, or thread start and join — that would make the access legal.",
+      "introduced": 7,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 16–17"
+          "session": 7,
+          "label": "Deck U7 · slides 5–7"
         },
         {
           "type": "lab",
-          "session": 5,
-          "label": "Lab week 9 · steps 1–3 — the race, TSan, and the volatile non-fix",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week09.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 5 — Ring buffer & O(1) online stats",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898727"
+          "session": 7,
+          "label": "Lab session 7 · Part A, steps A1–A4 — the race at -O0 and -O2, TSan, the volatile non-fix, the atomic fix",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "exam",
@@ -1604,33 +1806,26 @@ window.SKILLS = {
       "id": "cpp.atomics-memory-order",
       "category": "cpp",
       "name": "std::atomic & memory ordering",
-      "can": "You can choose relaxed, acquire/release or seq_cst for each atomic operation and justify it with the happens-before edge you actually need.",
-      "introduced": 5,
-      "practised": [
-        6
-      ],
+      "can": "You can choose relaxed, acquire/release or seq_cst for each atomic operation, justify it with the happens-before edge you actually need, and explain why the store-buffer litmus test needs seq_cst.",
+      "introduced": 7,
+      "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slides 18–20, 24"
-        },
-        {
-          "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slide 9"
+          "session": 7,
+          "label": "Deck U7 · slides 9–12"
         },
         {
           "type": "lab",
-          "session": 5,
-          "label": "Lab week 9 · steps 4–5 — atomic, then acquire/release",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week09.md"
+          "session": 7,
+          "label": "Lab session 7 · Part B, steps B1–B3 — the release/acquire handoff, -DBROKEN under TSan, the litmus test",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "hw",
-          "label": "HW 6 — An SPSC lock-free ring buffer",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+          "label": "HW 7 — An SPSC lock-free ring buffer",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
         },
         {
           "type": "exam",
@@ -1643,29 +1838,25 @@ window.SKILLS = {
       "id": "perf.lock-tail-cost",
       "category": "perf",
       "name": "Why a lock on the hot path is a tail bomb",
-      "can": "You can take a mutex correctly through a lock_guard, then trace how a contended one becomes a kernel wait or a priority inversion and show the damage in p99.9 rather than in the median.",
-      "introduced": 5,
+      "can": "You can take a mutex correctly through a lock_guard, then show from a measured p50/p99.9 table how a contended one wins the median and loses the tail to a futex wait, a context switch or a priority inversion.",
+      "introduced": 7,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 5,
-          "label": "Deck U5 · slide 21"
+          "session": 7,
+          "label": "Deck U7 · slides 14–15"
         },
         {
           "type": "lab",
-          "session": 5,
-          "label": "Lab week 9 · step 6 — the mutex answer, correct but slow",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week09.md"
+          "session": 7,
+          "label": "Lab session 7 · step A5 — mutex vs atomic vs private in lock_tail.cpp",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "exam",
           "label": "Final · group: Threads, Mutexes & Condition Variables"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Atomics, Memory Ordering & Lock-Free Queues"
         }
       ],
       "interview": true
@@ -1673,16 +1864,16 @@ window.SKILLS = {
     {
       "id": "cpp.compare-and-swap",
       "category": "cpp",
-      "name": "Compare-and-swap retry loops",
-      "can": "You can write a compare_exchange retry loop, explain why the expected value is refreshed on failure, and choose weak over strong inside a loop.",
-      "introduced": 6,
+      "name": "Compare-and-swap, ABA & progress guarantees",
+      "can": "You can write a compare_exchange retry loop that recomputes the desired value on every attempt, explain the ABA problem as a memory-reclamation problem, and place a structure on the wait-free / lock-free / obstruction-free ladder.",
+      "introduced": 7,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slide 5"
+          "session": 7,
+          "label": "Deck U7 · slides 16–17, 35"
         },
         {
           "type": "exam",
@@ -1692,50 +1883,29 @@ window.SKILLS = {
       "interview": true
     },
     {
-      "id": "cpp.lock-free-guarantees",
-      "category": "cpp",
-      "name": "ABA & progress guarantees",
-      "can": "You can describe the ABA problem and distinguish wait-free, lock-free and obstruction-free progress guarantees.",
-      "introduced": 6,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slide 6"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Atomics, Memory Ordering & Lock-Free Queues"
-        }
-      ],
-      "interview": false
-    },
-    {
       "id": "perf.spsc-ring",
       "category": "perf",
       "name": "A lock-free SPSC ring buffer",
-      "can": "You can build a bounded single-producer/single-consumer ring with atomic head and tail, a power-of-two mask, release/acquire publication, and the two indices on separate cache lines.",
-      "introduced": 6,
+      "can": "You can build a bounded single-producer/single-consumer ring with monotonic head and tail counters, a power-of-two mask, a release store that publishes each slot and the two indices on separate cache lines — and say which two lines make it correct.",
+      "introduced": 7,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slides 8–9"
+          "session": 7,
+          "label": "Deck U7 · slides 19–20, 22"
         },
         {
           "type": "lab",
-          "session": 6,
-          "label": "Lab week 10 · steps 2–6 — mask, alignas(64), push and pop",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week10.md"
+          "session": 7,
+          "label": "Lab session 7 · Part C, steps C1–C6 — push(), then pop()/empty()/full() yourself, make spsc-conc and spsc-tsan",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "hw",
-          "label": "HW 6 — An SPSC lock-free ring buffer",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+          "label": "HW 7 — An SPSC lock-free ring buffer",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
         },
         {
           "type": "project",
@@ -1753,20 +1923,21 @@ window.SKILLS = {
       "id": "perf.back-pressure",
       "category": "perf",
       "name": "Bounded queues & back-pressure",
-      "can": "You can make a full queue a decision — drop, coalesce or shed — instead of a stall, and explain how head-of-line blocking turns one fat message into a tail.",
-      "introduced": 6,
+      "can": "You can make a full queue a decision — drop, coalesce or shed, and count it — instead of a stall on the socket thread, and explain how head-of-line blocking turns one fat message into a tail.",
+      "introduced": 7,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slide 10"
+          "session": 7,
+          "label": "Deck U7 · slides 21, 28"
         },
         {
-          "type": "hw",
-          "label": "HW 6 — An SPSC lock-free ring buffer",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
+          "type": "lab",
+          "session": 7,
+          "label": "Lab session 7 · step E2 — wire the ring into your bot, drop and count",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "project",
@@ -1784,17 +1955,21 @@ window.SKILLS = {
       "id": "perf.shared-memory-ring",
       "category": "perf",
       "name": "A shared-memory ring across processes",
-      "can": "You can put a lock-free ring in a shared-memory segment so two processes hand messages over without a syscall, and say which assumptions a ring loses once the reader is a separate process.",
-      "introduced": 6,
-      "practised": [
-        7
-      ],
+      "can": "You can put a lock-free POD ring in a shm_open/mmap region so two processes hand messages over without a syscall, and say why it may hold no pointers, no owning containers and only always-lock-free atomics.",
+      "introduced": 7,
+      "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slides 12–13"
+          "session": 7,
+          "label": "Deck U7 · slides 24–25"
+        },
+        {
+          "type": "lab",
+          "session": 7,
+          "label": "Lab session 7 · Part D, steps D1–D3 — ShmRing, the fork() test, shm_pipeline.cpp",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session07.md"
         },
         {
           "type": "project",
@@ -1811,16 +1986,16 @@ window.SKILLS = {
     {
       "id": "cpp.cpp20-coordination",
       "category": "cpp",
-      "name": "C++20 coordination & execution policies",
-      "can": "You can line threads up with a latch or barrier instead of a hand-rolled condition variable, and say when an execution policy on an STL algorithm is worth its overhead.",
-      "introduced": 6,
+      "name": "C++20 coordination primitives",
+      "can": "You can line threads up with a std::latch, park an idle thread on atomic::wait/notify instead of a condition variable, and shut a std::jthread down cooperatively with its stop_token.",
+      "introduced": 7,
       "practised": [],
       "depth": 2,
       "where": [
         {
           "type": "deck",
-          "session": 6,
-          "label": "Deck U6 · slides 15–16"
+          "session": 7,
+          "label": "Deck U7 · slide 26"
         },
         {
           "type": "exam",
@@ -1830,120 +2005,50 @@ window.SKILLS = {
       "interview": false
     },
     {
-      "id": "tools.sanitizers",
-      "category": "tools",
-      "name": "Finding bugs with ASan, UBSan & ThreadSanitizer",
-      "can": "You can build a target with -fsanitize=address,undefined or -fsanitize=thread, read the report back to the two offending accesses, and explain why a sanitizer build is never the one you ship.",
-      "introduced": 6,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "lab",
-          "session": 6,
-          "label": "Lab week 10 · step 8 — two threads under ThreadSanitizer",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week10.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 6 — An SPSC lock-free ring buffer",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898728"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 3: Threading to Accelerate",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898736"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Measurement, Tail Latency & Production Practice"
-        }
-      ],
-      "interview": false
-    },
-    {
       "id": "trading.fix-protocol",
       "category": "trading",
       "name": "Parsing FIX tag=value messages",
-      "can": "You can pull the fields you need out of a SOH-delimited FIX message in one forward scan and reject the message on a bad mod-256 checksum.",
-      "introduced": 7,
+      "can": "You can pull the fields you need out of a SOH-delimited FIX message in one forward scan without allocating, keep the ClOrdID as a view, and reject the message on a bad mod-256 checksum.",
+      "introduced": 8,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slides 5, 12, 23"
+          "session": 8,
+          "label": "Deck U8 · slides 5, 29"
         },
         {
           "type": "lab",
-          "session": 7,
-          "label": "Lab week 11 · steps 1–4 — one forward scan, dispatch on the tag",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week11.md"
+          "session": 8,
+          "label": "Lab session 8 · step 1 — the single-pass FIX parser (make fix)",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
         },
         {
           "type": "hw",
-          "label": "HW 7 — Fast FIX parser + uint64→text",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
+          "label": "HW 8 — Fast FIX parser + uint64→text",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
         },
         {
           "type": "exam",
           "label": "Final · group: Networking: Sockets, Kernel Bypass & Protocol Parsing"
         }
       ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "trading.binary-market-data",
       "category": "trading",
       "name": "Fixed-width binary market data",
-      "can": "You can decode an ITCH/OUCH-style fixed-width message by reading fields at known offsets, byte-swapping from network order and scaling integer prices, with no digit parsing.",
-      "introduced": 7,
+      "can": "You can decode an ITCH/OUCH-style fixed-width message by memcpy-ing fields from known offsets, byte-swapping from network order and keeping prices as scaled integers, with a bounds check first and no digit parsing.",
+      "introduced": 8,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slides 6–7"
-        },
-        {
-          "type": "lab",
-          "session": 7,
-          "label": "Lab week 11 · step 6 — why fixed-width binary beats text",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week11.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 7 — Fast FIX parser + uint64→text",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Networking: Sockets, Kernel Bypass & Protocol Parsing"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "perf.transport-choice",
-      "category": "perf",
-      "name": "TCP vs UDP multicast for market data",
-      "can": "You can say why venues ship market data over UDP multicast and take order entry over TCP, and what head-of-line blocking and A/B feed arbitration mean for each.",
-      "introduced": 7,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slide 9"
-        },
-        {
-          "type": "lab",
-          "session": 7,
-          "label": "Lab week 11 · step 5 — TCP vs UDP semantics",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week11.md"
+          "session": 8,
+          "label": "Deck U8 · slides 6, 27"
         },
         {
           "type": "exam",
@@ -1955,16 +2060,16 @@ window.SKILLS = {
     {
       "id": "trading.feed-sequencing",
       "category": "trading",
-      "name": "Sequence numbers, gaps & snapshot-plus-increment",
-      "can": "You can rebuild a book from a snapshot plus increments, detect a sequence gap, and treat the book as untradeable until the feed has recovered.",
-      "introduced": 7,
+      "name": "TCP vs UDP multicast, sequence numbers & gap fill",
+      "can": "You can say why order entry runs over TCP and market data over UDP multicast, track the next expected sequence number to drop A/B duplicates and detect a gap, and keep a symbol untradeable until snapshot-plus-increment recovery completes.",
+      "introduced": 8,
       "practised": [],
       "depth": 2,
       "where": [
         {
           "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slide 10"
+          "session": 8,
+          "label": "Deck U8 · slides 7–8"
         },
         {
           "type": "exam",
@@ -1977,20 +2082,26 @@ window.SKILLS = {
       "id": "tools.message-framing",
       "category": "tools",
       "name": "Framing a byte stream into messages",
-      "can": "You can recover message boundaries from a stream with a length prefix or a delimiter, buffer a partial read, and bounds-check a length before you index with it.",
-      "introduced": 7,
+      "can": "You can recover message boundaries from a TCP byte stream with a length prefix or FIX BodyLength, dispatch complete frames as views, keep the partial remainder, and validate a length against a maximum before you trust it.",
+      "introduced": 8,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slides 11–12"
+          "session": 8,
+          "label": "Deck U8 · slide 9"
+        },
+        {
+          "type": "lab",
+          "session": 8,
+          "label": "Lab session 8 · step 3 — frame a FIX stream by BodyLength and verify the checksum",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
         },
         {
           "type": "hw",
-          "label": "HW 7 — Fast FIX parser + uint64→text",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
+          "label": "HW 8 — Fast FIX parser + uint64→text",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
         },
         {
           "type": "exam",
@@ -2002,22 +2113,22 @@ window.SKILLS = {
     {
       "id": "perf.nonblocking-io",
       "category": "perf",
-      "name": "Non-blocking sockets & readiness event loops",
-      "can": "You can drain a non-blocking socket until EAGAIN inside an epoll or kqueue readiness loop, and explain what edge-triggered mode obliges you to do.",
-      "introduced": 7,
+      "name": "Non-blocking I/O, readiness loops & batching vs latency",
+      "can": "You can drain a non-blocking socket until EAGAIN inside a poll/epoll/kqueue readiness loop, say what edge-triggered mode obliges you to do, and explain why batching and Nagle buy throughput at the cost of the tail — hence TCP_NODELAY on the order path.",
+      "introduced": 8,
       "practised": [],
       "depth": 2,
       "where": [
         {
           "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slides 14–17"
+          "session": 8,
+          "label": "Deck U8 · slides 11–12, 15, 28"
         },
         {
           "type": "lab",
-          "session": 7,
-          "label": "Lab week 12 · step 5 — a non-blocking read loop",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week12.md"
+          "session": 8,
+          "label": "Lab session 8 · step 3 — the O_NONBLOCK + poll() reader in frame_demo.cpp",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
         },
         {
           "type": "exam",
@@ -2030,97 +2141,7 @@ window.SKILLS = {
       "id": "perf.zero-copy-parse",
       "category": "perf",
       "name": "Zero-copy parse & hand-rolled serialization",
-      "can": "You can pull only the fields you use straight out of a frame with a view instead of building a DOM, write digits into a reused buffer on the send path, and show the p99.9 win on a replay tape.",
-      "introduced": 7,
-      "practised": [],
-      "depth": 3,
-      "where": [
-        {
-          "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slides 19–20, 24–25"
-        },
-        {
-          "type": "lab",
-          "session": 7,
-          "label": "Lab week 12 · steps 1–4 and 6 — fast integer-to-decimal and targeted field extract",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week12.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 7 — Fast FIX parser + uint64→text",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898729"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 4: Multi-Process System with Shared-Memory Lock-Free IPC",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898737"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Networking: Sockets, Kernel Bypass & Protocol Parsing"
-        }
-      ],
-      "interview": true
-    },
-    {
-      "id": "perf.batching-vs-latency",
-      "category": "perf",
-      "name": "Batching vs latency",
-      "can": "You can explain why batching buys throughput at the cost of the tail you are graded on, and why TCP_NODELAY belongs on an order path.",
-      "introduced": 7,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 7,
-          "label": "Deck U7 · slide 21"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Measurement, Tail Latency & Production Practice"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "perf.prefetch",
-      "category": "perf",
-      "name": "The memory wall, the TLB & software prefetching",
-      "can": "You can issue a __builtin_prefetch hint ahead of an irregular walk, tune the distance by measurement, and say how huge pages cut TLB misses.",
-      "introduced": 8,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 8,
-          "label": "Deck U8 · slides 5–6, 27"
-        },
-        {
-          "type": "lab",
-          "session": 8,
-          "label": "Lab week 13 · step 6 — alignas and __builtin_prefetch",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week13.md"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 5: Wire & Hardware Tuning",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898738"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Branch Prediction, SIMD & Compiler Optimisation"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "perf.simd",
-      "category": "perf",
-      "name": "SIMD & vectorization",
-      "can": "You can vectorize a hot reduction over aligned contiguous data, or get the compiler to do it with -O3 -march=native, and check that it really vectorized.",
+      "can": "You can extract only the three fields you need from a frame with a string_view instead of building a DOM, write digits into a reused buffer with no snprintf or std::string on the send path, and show the win on a replay tape.",
       "introduced": 8,
       "practised": [],
       "depth": 3,
@@ -2128,17 +2149,17 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 8,
-          "label": "Deck U8 · slides 7, 27"
+          "label": "Deck U8 · slides 13–14, 16"
         },
         {
           "type": "lab",
           "session": 8,
-          "label": "Lab week 13 · steps 2 and 5 — the winning build, then the intrinsics by hand",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week13.md"
+          "label": "Lab session 8 · step 2 and take-home step 3 — u64toa, then the targeted extract in your bot",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
         },
         {
           "type": "hw",
-          "label": "HW 8 — Build optimization & killing the tail",
+          "label": "HW 8 — Fast FIX parser + uint64→text",
           "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
         },
         {
@@ -2148,16 +2169,48 @@ window.SKILLS = {
         },
         {
           "type": "exam",
+          "label": "Final · group: Networking: Sockets, Kernel Bypass & Protocol Parsing"
+        }
+      ],
+      "interview": true
+    },
+    {
+      "id": "perf.simd",
+      "category": "perf",
+      "name": "The memory wall, SIMD & prefetch",
+      "can": "You can explain why a hot loop is memory-bound, let the compiler vectorize a reduction with -O3 -march=native and read its vectorization report to see why it refused, and issue a prefetch hint whose distance you tune by measurement.",
+      "introduced": 8,
+      "practised": [],
+      "depth": 3,
+      "where": [
+        {
+          "type": "deck",
+          "session": 8,
+          "label": "Deck U8 · slides 18–19"
+        },
+        {
+          "type": "lab",
+          "session": 8,
+          "label": "Lab session 8 · step 4 and take-home step 2 — -O0 vs -O3, why 'not vectorized', AVX2 by hand",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
+        },
+        {
+          "type": "project",
+          "label": "Project — Phase 5: Wire & Hardware Tuning",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898738"
+        },
+        {
+          "type": "exam",
           "label": "Final · group: Branch Prediction, SIMD & Compiler Optimisation"
         }
       ],
       "interview": true
     },
     {
-      "id": "perf.syscall-cost",
+      "id": "perf.kernel-bypass",
       "category": "perf",
-      "name": "Syscalls, busy-poll & interrupt jitter",
-      "can": "You can explain what a trip into the kernel costs on a hot path and when busy-polling a queue beats waiting to be woken.",
+      "name": "Syscalls, busy-poll & kernel bypass",
+      "can": "You can explain what a trip into the kernel costs on a hot path, when busy-polling a dedicated core beats being woken, and what DPDK, Onload/ef_vi, AF_XDP and io_uring each remove from the per-packet path.",
       "introduced": 8,
       "practised": [],
       "depth": 2,
@@ -2165,28 +2218,12 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 8,
-          "label": "Deck U8 · slide 9"
+          "label": "Deck U8 · slides 20, 28"
         },
         {
-          "type": "exam",
-          "label": "Final · group: Networking: Sockets, Kernel Bypass & Protocol Parsing"
-        }
-      ],
-      "interview": false
-    },
-    {
-      "id": "perf.kernel-bypass",
-      "category": "perf",
-      "name": "What kernel bypass changes",
-      "can": "You can explain what kernel bypass changes — DPDK, an Onload-style shim, or io_uring's batched syscalls — and which per-packet kernel costs each one removes.",
-      "introduced": 8,
-      "practised": [],
-      "depth": 1,
-      "where": [
-        {
-          "type": "deck",
-          "session": 8,
-          "label": "Deck U8 · slide 10"
+          "type": "project",
+          "label": "Project — Phase 5: Wire & Hardware Tuning",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898738"
         },
         {
           "type": "exam",
@@ -2198,8 +2235,8 @@ window.SKILLS = {
     {
       "id": "perf.cpu-pinning-numa",
       "category": "perf",
-      "name": "CPU pinning, core isolation & NUMA",
-      "can": "You can pin a hot thread to a core, say what isolcpus and nohz_full add, and keep its memory node-local and pre-faulted so no page fault lands mid-race.",
+      "name": "Pinning, isolation, NUMA & huge pages",
+      "can": "You can pin a hot thread to an isolated core, explain that pinning buys variance rather than speed, keep memory on the NIC's NUMA node, and pre-fault and lock hot memory at startup so no page fault lands mid-race.",
       "introduced": 8,
       "practised": [],
       "depth": 2,
@@ -2207,13 +2244,13 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 8,
-          "label": "Deck U8 · slides 11, 26"
+          "label": "Deck U8 · slides 21, 30"
         },
         {
           "type": "lab",
           "session": 8,
-          "label": "Lab week 13 · step 7 — connect it to the arena",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week13.md"
+          "label": "Lab session 8 · take-home step 4 — pin the hot thread and compare the p99.9 spread",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session08.md"
         },
         {
           "type": "project",
@@ -2230,7 +2267,7 @@ window.SKILLS = {
     {
       "id": "perf.hardware-timestamping",
       "category": "perf",
-      "name": "PTP, hardware timestamping & the hardware frontier",
+      "name": "PTP, hardware timestamps, NICs & FPGAs",
       "can": "You can explain why NTP is too coarse for microsecond work, what a NIC hardware timestamp measures that a user-space clock read cannot, and where an FPGA takes over from your C++.",
       "introduced": 8,
       "practised": [],
@@ -2239,7 +2276,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 8,
-          "label": "Deck U8 · slides 12–13"
+          "label": "Deck U8 · slide 22"
         },
         {
           "type": "exam",
@@ -2251,27 +2288,22 @@ window.SKILLS = {
     {
       "id": "tools.perf-profiler",
       "category": "tools",
-      "name": "Profiling with perf & reading a flame graph",
-      "can": "You can go from perf stat to perf record to perf report and annotate, fold sampled stacks into a flame graph and read it by width, so the wide plateaus rather than the tall spikes set your next fix.",
-      "introduced": 8,
+      "name": "perf, flame graphs & hardware counters",
+      "can": "You can go from perf stat to perf record -g to perf report, fold the sampled stacks into a flame graph and read it by width, then use IPC, cache/TLB-miss and branch-miss counters to say why the widest frame is hot.",
+      "introduced": 9,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 8,
-          "label": "Deck U8 · slides 16–18"
+          "session": 9,
+          "label": "Deck U9 · slides 6–7"
         },
         {
           "type": "lab",
-          "session": 8,
-          "label": "Lab week 14 · step 3 — perf record then perf report",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week14.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 8 — Build optimization & killing the tail",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
+          "session": 9,
+          "label": "Lab session 9 · A2 — profile before you fix (perf, or Instruments on macOS)",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
           "type": "project",
@@ -2288,27 +2320,22 @@ window.SKILLS = {
     {
       "id": "perf.tail-diagnosis",
       "category": "perf",
-      "name": "Diagnosing a latency tail",
-      "can": "You can attribute a tail spike to allocation, a page fault, a TLB miss, NUMA locality or scheduler preemption from its signature, keep logging off the hot path, then fix it and prove the p99.9 moved.",
-      "introduced": 8,
+      "name": "Where the tail comes from: allocation, faults & jitter",
+      "can": "You can read a latency distribution as a fast body plus rare stalls, attribute a spike to allocation, a page fault, a cache/TLB/NUMA miss, hidden O(n) work or scheduler jitter, fix it without changing the answer, and prove p99.9 moved on the same tape.",
+      "introduced": 9,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 8,
-          "label": "Deck U8 · slides 15, 20–21, 25"
+          "session": 9,
+          "label": "Deck U9 · slides 5, 8–9, 12"
         },
         {
           "type": "lab",
-          "session": 8,
-          "label": "Lab week 14 · steps 1–5 — read the tail, hypothesise, fix, watch it collapse",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week14.md"
-        },
-        {
-          "type": "hw",
-          "label": "HW 8 — Build optimization & killing the tail",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
+          "session": 9,
+          "label": "Lab session 9 · A0–A3 — run tail.cpp, hypothesise, fix it in tail_fixed.cpp with the same sink",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
           "type": "project",
@@ -2325,27 +2352,27 @@ window.SKILLS = {
     {
       "id": "tools.compiler-flags",
       "category": "tools",
-      "name": "Release flags, LTO & PGO",
-      "can": "You can justify -O3, -march=native, -flto and -DNDEBUG on a graded binary, keep -g for the profiler, and run the two-pass profile-guided build.",
-      "introduced": 8,
+      "name": "Release flags, PGO, LTO & sanitizer builds",
+      "can": "You can justify -O3, -march=native, -flto and -DNDEBUG on a graded binary, keep -g for the profiler, run a two-pass profile-guided build, and keep ASan/UBSan and TSan as separate, never-shipped correctness builds.",
+      "introduced": 9,
       "practised": [],
       "depth": 3,
       "where": [
         {
           "type": "deck",
-          "session": 8,
-          "label": "Deck U8 · slides 22–23, 28"
+          "session": 9,
+          "label": "Deck U9 · slides 10–11"
         },
         {
           "type": "lab",
-          "session": 8,
-          "label": "Lab week 13 · steps 2–4 — the winning build and PGO",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week13.md"
+          "session": 9,
+          "label": "Lab session 9 · A4–A5 — sanitizers on the fixed copy, then PGO and LTO on kernel.cpp",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
-          "type": "hw",
-          "label": "HW 8 — Build optimization & killing the tail",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898730"
+          "type": "project",
+          "label": "Project — Phase 6: Profile & Kill the Tail",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898739"
         },
         {
           "type": "exam",
@@ -2358,7 +2385,7 @@ window.SKILLS = {
       "id": "trading.nbbo-latency-arb",
       "category": "trading",
       "name": "The NBBO & picking off a stale quote",
-      "can": "You can consolidate two venues into an NBBO, detect the crossed state that means one side is stale, and explain why only the first order to reach that venue is paid.",
+      "can": "You can consolidate two venues into an NBBO, recognise the locked and crossed states, and decide whether picking off the stale quote survives two taker fees before you send anything.",
       "introduced": 9,
       "practised": [],
       "depth": 3,
@@ -2366,13 +2393,13 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slides 5–6, 18"
+          "label": "Deck U9 · slides 14–15, 20"
         },
         {
           "type": "lab",
           "session": 9,
-          "label": "Lab week 15 · step 2 — sketch the cross-venue stale-quote detector",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week15.md"
+          "label": "Lab session 9 · B — the HW 9 stale-quote detector and its ten-row test table",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
           "type": "hw",
@@ -2389,13 +2416,13 @@ window.SKILLS = {
           "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
         }
       ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "trading.smart-order-routing",
       "category": "trading",
-      "name": "Smart order routing & sweeping",
-      "can": "You can split or sweep an order across venues for displayed size and account for fees, rebates and per-venue latency in the route you pick.",
+      "name": "The race & smart order routing",
+      "can": "You can explain why only the first order to reach a stale venue is paid, size an arbitrage to the thin side, route across venues net of fees and latency, and manage the leg risk of a one-sided fill.",
       "introduced": 9,
       "practised": [],
       "depth": 2,
@@ -2403,7 +2430,18 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slide 7"
+          "label": "Deck U9 · slides 16, 24"
+        },
+        {
+          "type": "lab",
+          "session": 9,
+          "label": "Lab session 9 · C — tournament pre-flight: fee-aware thresholds, two processes per venue",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
+        },
+        {
+          "type": "hw",
+          "label": "HW 9 — Cross-venue stale-quote detector",
+          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898731"
         },
         {
           "type": "project",
@@ -2420,8 +2458,8 @@ window.SKILLS = {
     {
       "id": "trading.market-making",
       "category": "trading",
-      "name": "Quoting two sides at speed",
-      "can": "You can quote a bid and an ask around a fair value anchored on the microprice, and explain how spread plus rebates pay for the risk of a stale quote.",
+      "name": "Market making at speed: queue, skew, hold",
+      "can": "You can quote around a microprice fair value, lean both quotes against your inventory, and decide between HOLD, REQUOTE and CANCEL from queue_ahead and level_qty under a tight message quota.",
       "introduced": 9,
       "practised": [],
       "depth": 3,
@@ -2429,13 +2467,13 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slide 9"
+          "label": "Deck U9 · slides 17, 22"
         },
         {
           "type": "lab",
           "session": 9,
-          "label": "Lab week 15 · step 4 — map strategy to the composite grade",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week15.md"
+          "label": "Lab session 9 · C — stay under the 6-message order quota",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
           "type": "project",
@@ -2447,45 +2485,13 @@ window.SKILLS = {
           "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
         }
       ],
-      "interview": false
-    },
-    {
-      "id": "trading.queue-aware-requoting",
-      "category": "trading",
-      "name": "Queue-aware requoting & inventory skew",
-      "can": "You can decide when a requote is worth losing your place in the FIFO queue, and lean your quotes against the inventory you are carrying.",
-      "introduced": 9,
-      "practised": [],
-      "depth": 2,
-      "where": [
-        {
-          "type": "deck",
-          "session": 9,
-          "label": "Deck U9 · slide 10"
-        },
-        {
-          "type": "lab",
-          "session": 9,
-          "label": "Lab week 15 · step 3 — sketch the queue-aware requote",
-          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week15.md"
-        },
-        {
-          "type": "project",
-          "label": "Project — Phase 7: The Tournament",
-          "url": "https://canvas.uchicago.edu/courses/73835/assignments/898740"
-        },
-        {
-          "type": "exam",
-          "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
-        }
-      ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "trading.adverse-selection",
       "category": "trading",
       "name": "Adverse selection & markouts",
-      "can": "You can mark a fill out against the mid a moment later and use a persistently negative markout to widen, skew away from, or stop quoting a name.",
+      "can": "You can mark a fill out against the mid a moment later, signed by side, read a persistently negative markout as toxic flow, and explain how the 1-second markout enters the tournament's MM SCORE.",
       "introduced": 9,
       "practised": [],
       "depth": 3,
@@ -2493,7 +2499,13 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slide 11"
+          "label": "Deck U9 · slides 18, 23"
+        },
+        {
+          "type": "lab",
+          "session": 9,
+          "label": "Lab session 9 · B — README question 2: what makes the signal false",
+          "url": "https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session09.md"
         },
         {
           "type": "hw",
@@ -2510,13 +2522,13 @@ window.SKILLS = {
           "label": "Final · group: Low-Latency System Design: Allocators, Order Books & Timing"
         }
       ],
-      "interview": false
+      "interview": true
     },
     {
       "id": "trading.hft-ethics",
       "category": "trading",
-      "name": "The frontier and the ethics of speed",
-      "can": "You can argue both sides of paid speed — tighter spreads and deeper books against a pay-to-win arms race — and name the rules that shape it.",
+      "name": "Market fairness & the ethics of speed",
+      "can": "You can argue both sides of paid speed — tighter spreads and deeper books against a pay-to-win arms race — and name the market-design tools (circuit breakers, LULD bands, speed bumps, batch auctions) that shape it.",
       "introduced": 9,
       "practised": [],
       "depth": 1,
@@ -2524,7 +2536,7 @@ window.SKILLS = {
         {
           "type": "deck",
           "session": 9,
-          "label": "Deck U9 · slides 13–14"
+          "label": "Deck U9 · slide 19"
         }
       ],
       "interview": false

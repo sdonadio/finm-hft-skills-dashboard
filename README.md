@@ -1,7 +1,7 @@
 # Skills Dashboard
 
 A small, public, student-facing site for a graduate course. Every session is built around **one main
-technical focus** — in the C++ course week 2 is pointers, week 3 is objects and ownership, and so on — and
+technical focus** — in FINM 32700 session 2 is pointers, session 3 is encapsulation and inheritance, and so on — and
 each session page reads top to bottom as a short technical page:
 
 1. the focus, as a numbered sequence of concept cards with real code snippets;
@@ -15,7 +15,7 @@ The overview page is a focus timeline: one row per session, showing the focus in
 that session's checklist is ticked.
 
 Published as a static site on GitHub Pages — this instance:
-<https://sdonadio.github.io/hft-skills-dashboard/>
+<https://sdonadio.github.io/finm-hft-skills-dashboard/>
 
 **The shell is course-agnostic.** The course code, title, institution, term, links, LMS name, code
 language, accent colours and the browser-storage namespace all come from the data files. The same shell

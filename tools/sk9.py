@@ -1,0 +1,57 @@
+# -*- coding: utf-8 -*-
+"""Session 9 skills — The Tail & the Tournament (deck U9, labs/session09.md).
+
+Profiling and the tail (moved here from the old Session 8) + latency arbitrage,
+market making at speed and the tournament. Practised here but defined elsewhere:
+trading.price-time-priority (sk1), trading.queue-position (sk6).
+"""
+from skills_common import *  # noqa: F401,F403
+
+SKILLS = [
+    S("tools.perf-profiler", "tools", "perf, flame graphs & hardware counters",
+      "You can go from perf stat to perf record -g to perf report, fold the sampled stacks into a flame graph and read it by width, then use IPC, cache/TLB-miss and branch-miss counters to say why the widest frame is hot.",
+      9, [], 3,
+      [deck(9, "slides 6–7"),
+       lab(9, "A2 — profile before you fix (perf, or Instruments on macOS)"),
+       proj(6), final("meas")], True),
+    S("perf.tail-diagnosis", "perf", "Where the tail comes from: allocation, faults & jitter",
+      "You can read a latency distribution as a fast body plus rare stalls, attribute a spike to allocation, a page fault, a cache/TLB/NUMA miss, hidden O(n) work or scheduler jitter, fix it without changing the answer, and prove p99.9 moved on the same tape.",
+      9, [], 3,
+      [deck(9, "slides 5, 8–9, 12"),
+       lab(9, "A0–A3 — run tail.cpp, hypothesise, fix it in tail_fixed.cpp with the same sink"),
+       proj(6), final("meas")], True),
+    S("tools.compiler-flags", "tools", "Release flags, PGO, LTO & sanitizer builds",
+      "You can justify -O3, -march=native, -flto and -DNDEBUG on a graded binary, keep -g for the profiler, run a two-pass profile-guided build, and keep ASan/UBSan and TSan as separate, never-shipped correctness builds.",
+      9, [], 3,
+      [deck(9, "slides 10–11"),
+       lab(9, "A4–A5 — sanitizers on the fixed copy, then PGO and LTO on kernel.cpp"),
+       proj(6), final("simd")]),
+    S("trading.nbbo-latency-arb", "trading", "The NBBO & picking off a stale quote",
+      "You can consolidate two venues into an NBBO, recognise the locked and crossed states, and decide whether picking off the stale quote survives two taker fees before you send anything.",
+      9, [], 3,
+      [deck(9, "slides 14–15, 20"),
+       lab(9, "B — the HW 9 stale-quote detector and its ten-row test table"),
+       hw(9), proj(7), final("sys")], True),
+    S("trading.smart-order-routing", "trading", "The race & smart order routing",
+      "You can explain why only the first order to reach a stale venue is paid, size an arbitrage to the thin side, route across venues net of fees and latency, and manage the leg risk of a one-sided fill.",
+      9, [], 2,
+      [deck(9, "slides 16, 24"),
+       lab(9, "C — tournament pre-flight: fee-aware thresholds, two processes per venue"),
+       hw(9), proj(7), final("sys")]),
+    S("trading.market-making", "trading", "Market making at speed: queue, skew, hold",
+      "You can quote around a microprice fair value, lean both quotes against your inventory, and decide between HOLD, REQUOTE and CANCEL from queue_ahead and level_qty under a tight message quota.",
+      9, [], 3,
+      [deck(9, "slides 17, 22"),
+       lab(9, "C — stay under the 6-message order quota"),
+       proj(7), final("sys")], True),
+    S("trading.adverse-selection", "trading", "Adverse selection & markouts",
+      "You can mark a fill out against the mid a moment later, signed by side, read a persistently negative markout as toxic flow, and explain how the 1-second markout enters the tournament's MM SCORE.",
+      9, [], 3,
+      [deck(9, "slides 18, 23"),
+       lab(9, "B — README question 2: what makes the signal false"),
+       hw(9), proj(7), final("sys")], True),
+    S("trading.hft-ethics", "trading", "Market fairness & the ethics of speed",
+      "You can argue both sides of paid speed — tighter spreads and deeper books against a pay-to-win arms race — and name the market-design tools (circuit breakers, LULD bands, speed bumps, batch auctions) that shape it.",
+      9, [], 1,
+      [deck(9, "slide 19")]),
+]

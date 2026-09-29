@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 """Validator for focus.js (UChicago FINM 32700) against FOCUS_SCHEMA.md.
 
-Adapted from the Columbia validator: 9 sessions, the merged u1..u9 decks (slide
+9 sessions (resequenced map of 2026-09-29), one u* deck per session (slide
 counts read from ../raw/slides.json, extracted from the real .pptx), the
-required `meta` block, and the hard content rule that no arena address may
-appear anywhere in the file."""
-import io, json, os, re, subprocess, sys
+required `meta` block, and the hard content rules: no arena address, and
+"Session N", never "Week N".
+
+    python3 tools/validate_focus.py          # the built focus.js, all sessions
+    python3 tools/validate_focus.py --fp 3   # tools/fp3.py alone, before building
+"""
+import importlib, io, json, os, re, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -23,8 +27,20 @@ LEVELS = {"warm-up", "core", "senior"}
 # names a full verified program in snips/ whose distinctive lines must appear
 # verbatim in the displayed snippet; it is compiled and run instead of the
 # fragment, because the fragment shows only one half of the class.
+# Each tools/fpN.py may export its own FILE_SCOPE / COMPANION dicts.
 FILE_SCOPE = {}
 COMPANION = {}
+sys.path.insert(0, HERE)
+for _n in range(1, 10):
+    try:
+        _m = importlib.import_module("fp%d" % _n)
+    except ImportError:
+        continue
+    FILE_SCOPE.update(getattr(_m, "FILE_SCOPE", {}))
+    COMPANION.update(getattr(_m, "COMPANION", {}))
+ONLY = None
+if "--fp" in sys.argv:
+    ONLY = int(sys.argv[sys.argv.index("--fp") + 1])
 
 
 # session -> decks, per the verified mapping in SCHEMA.md / skills.js
@@ -34,13 +50,20 @@ errors, warnings = [], []
 def err(m): errors.append(m)
 
 # ---------- 1. strip the JS wrapper and parse as JSON ----------
-raw = io.open(FOCUS, encoding="utf-8").read()
 PREFIX = "window.FOCUS = "
-assert raw.startswith(PREFIX), "focus.js must start with 'window.FOCUS = '"
-body = raw[len(PREFIX):].strip()
-assert body.endswith(";"), "focus.js must end with ';'"
-body = body[:-1]
-data = json.loads(body)          # strict JSON: no comments, no trailing commas
+if ONLY is None:
+    raw = io.open(FOCUS, encoding="utf-8").read()
+    assert raw.startswith(PREFIX), "focus.js must start with 'window.FOCUS = '"
+    body = raw[len(PREFIX):].strip()
+    assert body.endswith(";"), "focus.js must end with ';'"
+    body = body[:-1]
+    data = json.loads(body)          # strict JSON: no comments, no trailing commas
+else:
+    _s = importlib.import_module("fp%d" % ONLY).S
+    data = {"meta": {"link_title": "Why this matters in HFT",
+                     "interview_title": "Interview questions"}, "sessions": [_s]}
+    raw = json.dumps(data, ensure_ascii=False)
+    NS_ONLY = [_s["n"]]
 print("1. JSON parse .......... OK  (%d bytes, %d top-level keys)" % (len(raw), len(data)))
 
 # ---------- 2. deck lengths, from the extracted deck texts ----------
@@ -54,12 +77,20 @@ print("2. deck lengths ........ " + " ".join("%s=%d" % (k, deck_len[k])
 sraw = io.open(SKILLS, encoding="utf-8").read()
 sdata = json.loads(sraw[sraw.index("{"):sraw.rindex(";")])
 skill_ids = {s["id"] for s in sdata["skills"]}
+if ONLY is not None:        # before build_skills.py has run: accept ids from tools/skN.py too
+    for _n in range(1, 10):
+        try:
+            skill_ids |= {k["id"] for k in importlib.import_module("sk%d" % _n).SKILLS}
+        except ImportError:
+            pass
 print("3. skills.js ids ....... %d ids loaded" % len(skill_ids))
 
 # ---------- 4. structure ----------
 sessions = data["sessions"]
-if len(sessions) != NS: err("expected %d sessions, got %d" % (NS, len(sessions)))
-if [s["n"] for s in sessions] != list(range(1, NS + 1)):
+if ONLY is not None:
+    if [s["n"] for s in sessions] != [ONLY]: err("fp%d.py must define session %d" % (ONLY, ONLY))
+elif len(sessions) != NS: err("expected %d sessions, got %d" % (NS, len(sessions)))
+if ONLY is None and [s["n"] for s in sessions] != list(range(1, NS + 1)):
     err("session numbers must be 1..%d in order, got %s" % (NS, [s["n"] for s in sessions]))
 
 # --- the required meta block (UChicago addition to the contract)
@@ -76,6 +107,11 @@ print("   meta .............. %r" % (meta,))
 # --- content rule: no arena address anywhere
 for _m in set(ARENA_BAD.findall(raw)):
     err("CONTENT RULE: arena address leaked into focus.js (%r)" % _m)
+# --- wording rule: "Session N", never "Week N" (file names like week10.json excepted)
+for _m in set(re.findall(r"\b[Ww]eeks? ?\d+", re.sub(r"[\w/.-]*week\d+\.(?:html|json|md)", "", raw))):
+    err("WORDING: %r — say 'Session N', never 'Week N'" % _m)
+for _m in set(re.findall(r"\bColumbia\b|\bIEOR\b|CourseWorks", raw)):
+    err("CONTENT RULE: %r must not appear on the UChicago site" % _m)
 
 deck_re = re.compile(r"Deck (U\d+)\s*·\s*slides?\s*(\d+)(?:\s*[–-]\s*(\d+))?")
 snippets, used_skills, lvl_tally = [], set(), {}
@@ -162,7 +198,25 @@ for s in sessions:
 HDR = """#include <algorithm>
 #include <array>
 #include <atomic>
+#include <barrier>
+#include <bit>
+#include <chrono>
+#include <charconv>
 #include <cmath>
+#include <concepts>
+#include <condition_variable>
+#include <deque>
+#include <functional>
+#include <latch>
+#include <list>
+#include <map>
+#include <mutex>
+#include <optional>
+#include <semaphore>
+#include <span>
+#include <string>
+#include <unordered_map>
+#include <variant>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -181,7 +235,7 @@ HDR = """#include <algorithm>
 #include <vector>
 """
 os.makedirs(SNIPS, exist_ok=True)
-print("5. snippets ............ compile with `clang++ -std=c++17 -Wall` and run")
+print("5. snippets ............ compile with `clang++ -std=c++20 -Wall` and run")
 ok = bad = 0
 for tag, i, title, code in snippets:
     # expected output = the trailing // comment lines of the snippet
@@ -219,7 +273,7 @@ for tag, i, title, code in snippets:
         else:
             text = HDR + "\nint main(){\n" + code + "\n}\n"
         io.open(src, "w", encoding="utf-8").write(text)
-    cp = subprocess.run(["clang++", "-std=c++17", "-Wall", "-pthread",
+    cp = subprocess.run(["clang++", "-std=c++20", "-Wall", "-pthread",
                          "-o", os.path.join(SNIPS, name), src],
                         capture_output=True, text=True, timeout=120)
     if cp.returncode != 0:
@@ -247,14 +301,23 @@ print("   -> %d snippets verified, %d problems" % (ok, bad))
 
 # ---------- 6. arena example snippets are quoted from real repo files ----------
 REPO = "/Users/sdonadio/PycharmProjects/AlgoArena"
-print("6. arena examples ...... quoted from real files (not compiled standalone)")
+# the students' starter repo (hft-cpp-starter-uchicago): a local checkout, if present
+_STARTERS = [os.environ.get("UC_STARTER", ""),
+    "/private/tmp/claude-501/-Users-sdonadio-PycharmProjects-AlgoArena/86a15543-5df7-4a4f-9dd2-b7c6eac303ed/scratchpad/hft-cpp-starter-uchicago",
+    os.path.expanduser("~/PycharmProjects/hft-cpp-starter-uchicago")]
+STARTER = next((d for d in _STARTERS if d and os.path.isdir(d)), None)
+ROOTS = [REPO] + ([STARTER] if STARTER else [])
+print("6. arena examples ...... quoted from real files in the AlgoArena repo or the "
+      "UChicago starter (not compiled standalone)")
 for s in sessions:
     ex = s["hft"].get("example")
     if not ex: continue
-    paths = re.findall(r"(?:^|\s)((?:hft|course|scripts)/[\w./-]+\.(?:hpp|cpp|py|json|md))",
+    paths = re.findall(r"(?:^|[\s(])((?:hft|course|scripts|include|tests|starters|labs|project)/[\w./-]+\.(?:hpp|cpp|h|py|json|md))",
                        ex["code"] + " " + ex["text"])
-    miss = [p for p in set(paths) if not os.path.exists(os.path.join(REPO, p))]
+    miss = [p for p in set(paths)
+            if not any(os.path.exists(os.path.join(r, p)) for r in ROOTS)]
     if miss: err("S%d: hft.example names files that do not exist: %s" % (s["n"], miss))
+    if not paths: warnings.append("S%d: hft.example cites no file path" % s["n"])
     print("   S%-2d %s" % (s["n"], ", ".join(sorted(set(paths))) or "(no path cited)"))
 
 # ---------- 7. summary ----------
@@ -269,6 +332,6 @@ if errors:
     print("FAIL  %d error(s):" % len(errors))
     for e in errors: print("  -", e)
     sys.exit(1)
-print("PASS  focus.js conforms to FOCUS_SCHEMA.md "
+print("PASS  %s conforms to FOCUS_SCHEMA.md "
       "(%d sessions, 4-6 concepts, 3-5 hft paragraphs, 6-8 interview items, "
-      "%d compiled snippets, no arena address)." % (NS, ok))
+      "%d compiled snippets, no arena address)." % ("tools/fp%d.py" % ONLY if ONLY else "focus.js", NS if ONLY is None else 1, ok))

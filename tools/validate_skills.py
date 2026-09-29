@@ -2,15 +2,20 @@ import os
 #!/usr/bin/env python3
 """Validate skills.js (UChicago FINM 32700) against the SCHEMA.md data contract.
 
-Adapted from the Columbia validator: 9 sessions instead of 13, u* decks, the
-UChicago starter repo and Canvas 73835 assignment URLs, and the extra course
-keys (lms / accent / accent_2 / storage_prefix). Lab bodies are byte-identical
-to the Columbia project-starter, which is where existence is checked."""
+9 sessions (resequenced map of 2026-09-29, course/hft-uchicago/RESEQUENCE_PLAN.md),
+one u* deck and one lab (labs/sessionNN.md in hft-cpp-starter-uchicago) per session,
+Canvas 73835 assignment URLs, and the extra course keys (lms / accent / accent_2 /
+storage_prefix). Lab existence is checked against a local checkout of the starter
+repo: $UC_STARTER_LABS, else the known working copies below (skipped with a
+warning when none is present)."""
 import json, os, re, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills.js")
-LABS_DIR = "/Users/sdonadio/PycharmProjects/AlgoArena/course/hft-columbia/project-starter/labs"
+_LAB_CANDIDATES = [os.environ.get("UC_STARTER_LABS", ""),
+    "/private/tmp/claude-501/-Users-sdonadio-PycharmProjects-AlgoArena/86a15543-5df7-4a4f-9dd2-b7c6eac303ed/scratchpad/hft-cpp-starter-uchicago/labs",
+    os.path.expanduser("~/PycharmProjects/hft-cpp-starter-uchicago/labs")]
+LABS_DIR = next((d for d in _LAB_CANDIDATES if d and os.path.isdir(d)), None)
 ARENA_BAD = re.compile(r"algoarenafin|duckdns|\b\d{1,3}(?:\.\d{1,3}){3}\b|wss?://|feed\.", re.I)
 DECK_DIR = "/Users/sdonadio/PycharmProjects/AlgoArena/course/hft-uchicago"
 
@@ -29,8 +34,7 @@ assert raw.endswith(";"), "must end with ;"
 data = json.loads(raw[len("window.SKILLS = "):-1])
 
 NS = 9
-LAB_OF = {1: [1], 2: [2, 3], 3: [4, 5], 4: [6, 7], 5: [8, 9], 6: [10],
-          7: [11, 12], 8: [13, 14], 9: [15]}
+LAB_OF = {n: [n] for n in range(1, NS + 1)}     # one lab per session
 
 errs = []
 def chk(cond, msg):
@@ -127,15 +131,16 @@ for k in skills:
                 "%s cites a deck from session %d, which is neither its introduced "
                 "session nor a practised one" % (sid, w["session"]))
         elif w["type"] == "lab":
-            chk(w["url"].startswith("https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/week"),
+            chk(w["url"].startswith("https://github.com/sdonadio/hft-cpp-starter-uchicago/blob/main/labs/session"),
                 "%s lab url wrong" % sid)
             f = w["url"].rsplit("/", 1)[-1]
-            chk(os.path.exists(os.path.join(LABS_DIR, f)), "%s lab file %s does not exist" % (sid, f))
+            if LABS_DIR:
+                chk(os.path.exists(os.path.join(LABS_DIR, f)), "%s lab file %s does not exist" % (sid, f))
             chk("session" in w and 1 <= w["session"] <= NS, "%s lab where missing session" % sid)
             chk(w["session"] == k["introduced"] or w["session"] in k["practised"],
                 "%s cites a lab from session %d, which is neither its introduced "
                 "session nor a practised one" % (sid, w["session"]))
-            labnum = int(re.search(r"week(\d\d)\.md", f).group(1))
+            labnum = int(re.search(r"session(\d\d)\.md", f).group(1))
             chk(labnum in LAB_OF.get(w["session"], []),
                 "%s cites %s under session %d, which runs labs %r" %
                 (sid, f, w["session"], LAB_OF.get(w["session"])))
@@ -146,6 +151,10 @@ for k in skills:
             chk("url" not in w, "%s exam where must have no url" % sid)
             chk(w["label"].startswith(("Midterm · group: ", "Final · group: ")),
                 "%s exam label %r wrong" % (sid, w["label"]))
+            # the midterm (Session 5) examines Sessions 1-4 only
+            if w["label"].startswith("Midterm"):
+                chk(k["introduced"] <= 4, "%s is introduced in session %d but tagged "
+                    "for the midterm (scope: sessions 1-4)" % (sid, k["introduced"]))
     order = [ALLOWED_WHERE and ["deck", "lab", "hw", "project", "exam"].index(w["type"]) for w in k["where"]]
     chk(order == sorted(order), "%s where not in deck/lab/hw/project/exam order" % sid)
 
@@ -170,12 +179,19 @@ for k in skills:
     got = {s["n"] for s in sess if k["id"] in s["skills"]}
     chk(want == got, "%s should appear in sessions %r but appears in %r" % (k["id"], sorted(want), sorted(got)))
 for s in sess:
-    chk(5 <= len(s["skills"]) <= 9, "session %d has %d skills (want 5-9)" % (s["n"], len(s["skills"])))
+    chk(5 <= len(s["skills"]) <= 10, "session %d has %d skills (want 5-10)" % (s["n"], len(s["skills"])))
+    chk(s["lab"]["url"].endswith("session%02d.md" % s["n"]), "session %d lab url wrong" % s["n"])
+
+# --- wording: sessions, never weeks (companion page URLs excepted)
+for _m in set(re.findall(r"\b[Ww]eeks? ?\d+", re.sub(r"[\w/.-]*week\d+\.(?:html|json|md)", "", raw))):
+    errs.append("WORDING: %r — say 'Session N', never 'Week N'" % _m)
 
 # --- report
 for _m in set(ARENA_BAD.findall(raw)):
     errs.append("CONTENT RULE: arena address leaked into skills.js (%r)" % _m)
 chk(bool(DECK_LEN), "python-pptx unavailable: deck slide counts NOT checked")
+if not LABS_DIR:
+    print("WARNING: no local starter checkout — lab file existence NOT checked")
 
 print("=" * 68)
 print("skills.js validation" + ("  —  ALL CHECKS PASSED" if not errs else "  —  %d FAILURES" % len(errs)))
