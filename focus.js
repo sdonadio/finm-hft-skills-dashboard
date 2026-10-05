@@ -35,7 +35,7 @@ window.FOCUS = {
         {
           "title": "Maker/taker: who pays and who gets paid",
           "text": "Under a maker/taker schedule the aggressive side pays a fee and the passive side often earns a rebate, both as a fraction of notional. The arena prints its schedule on connect — taker 30 bps, maker rebate 5 bps in the session-1 lab — and the sign of that number is a real part of a market maker's P&L, not an accounting detail: your edge is trade edge minus fees plus rebates.",
-          "code": "double px = 182.50; int qty = 200;\ndouble notional = px * qty;\ndouble taker = 0.0030 * notional;   // cross the spread: you pay\ndouble maker = 0.0005 * notional;   // rest in the queue: you are paid\nstd::printf(\"%.2f -%.2f +%.2f\\n\", notional, taker, maker);\n// 36500.00 -109.50 +18.25   -- a 128.75 swing on one 200-share clip",
+          "code": "double px = 182.50; int qty = 200;\ndouble notional = px * qty;\ndouble taker = 0.0030 * notional;   // cross the spread: you pay\ndouble maker = 0.0005 * notional;   // rest in the queue: you are paid\nstd::printf(\"%.2f -%.2f +%.2f\\n\", notional, taker, maker);\n// 36500.00 -109.50 +18.25   -- a 127.75 swing (109.50 + 18.25) on one 200-share clip",
           "deck": "Deck U1 · slide 12"
         },
         {

@@ -65,7 +65,7 @@ double notional = px * qty;
 double taker = 0.0030 * notional;   // cross the spread: you pay
 double maker = 0.0005 * notional;   // rest in the queue: you are paid
 std::printf("%.2f -%.2f +%.2f\\n", notional, taker, maker);
-// 36500.00 -109.50 +18.25   -- a 128.75 swing on one 200-share clip""",
+// 36500.00 -109.50 +18.25   -- a 127.75 swing (109.50 + 18.25) on one 200-share clip""",
       "deck": "Deck U1 · slide 12"
     },
     {
