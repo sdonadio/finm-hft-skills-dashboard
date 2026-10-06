@@ -1,173 +1,156 @@
 # -*- coding: utf-8 -*-
-"""Session 6 focus — memory pools & the order book (deck U6, labs/session06.md,
-speaker guide session6_talking_points.md).
+"""Session 6 focus — Concurrency: from atomics to lock-free (deck U6, labs/session06.md).
 
-Pool / placement-new / pmr / hash / flat-book / ring / Welford wording reused from
-the pre-resequence site where the topic only moved; every slide re-cited to U6.
+Sources: u7.pptx (slides cited from its real numbering), session6_talking_points.md,
+labs/session06.md (Parts A-E). Ring convention as in the deck, the lab and the grader:
+the producer writes tail_, the consumer writes head_.
 Every `code` snippet is compiled and run by tools/validate_focus.py.
 """
 
-FILE_SCOPE = {}   # "v_s6_cK": number of leading lines that go at file scope
+FILE_SCOPE = {"v_s6_c5": 9, "v_s6_c7": 10}   # "v_s6_cK": leading lines at file scope
 
 S = {
 "n": 6,
-"focus": "Memory pools & the order book",
-"tagline": "Allocation that costs the same every tick, and a book whose top is one load away — the two structures the rest of your hot path stands on.",
+"focus": "Concurrency: atomics to lock-free",
+"tagline": "Hand every tick from the socket thread to the strategy with two atomic operations and no lock — and prove it with a happens-before argument and a clean ThreadSanitizer run.",
 "concepts": [
- {"title": "The fixed-size object pool",
-  "text": "malloc is not slow — it is fast on average and unpredictable: a shared, thread-safe heap that takes locks, calls the kernel for pages when it runs dry, and fragments over a session, so the same new+delete of a 64-byte order is about 11–21 ns on average and 0.5–0.9 µs in its worst batch. Flip every property and you have the pool: one block size, one slab owned since startup, and a singly linked free list threaded through the *unused* slots, so the free slots are the list and cost no extra memory. Allocation pops the head, free pushes it back, both O(1) with no search, no lock and no syscall — and LIFO reuse hands back a slot that is still hot in L1. Measured in the lab, the pool's mean is several times lower, but the sentence HW 6 asks you to defend is that its number is stable.",
-  "code": r'''struct Slot { Slot* next; };
-Slot slab[4]; Slot* free_ = nullptr;                   // ONE pre-owned block
-for (auto& s : slab) { s.next = free_; free_ = &s; }   // thread the free-list
-Slot* a = free_; free_ = a->next;                      // alloc: O(1) pop
-Slot* b = free_; free_ = b->next;                      // alloc: O(1) pop
-b->next = free_; free_ = b;                            // free:  O(1) push
-Slot* c = free_; free_ = c->next;                      // alloc again
-std::printf("%d %d %d\n", a != b, c == b, free_ != nullptr);
-// 1 1 1   -- the freed slot is handed straight back, still hot in L1''',
-  "deck": "Deck U6 · slides 5–6, 8, 13"},
- {"title": "Storage versus lifetime: placement new",
-  "text": "In C++ getting bytes and starting an object's life are two separate steps. A pool does the first once, at startup; new (ptr) T{...} does the second per object — it runs only the constructor, in memory you already own, and allocates nothing. The obligation is symmetry: nobody will run the destructor for you, so you call p->~T() before the slot goes back to the pool (delete would free memory the heap never gave you), and the storage must be sized and aligned for T, which is why slots are declared alignas(T). The explicit destructor call ends the object's life; it does not free anything. ObjectPool<T, N> wraps exactly this: a variadic alloc(Args&&...) forwards into placement new, and exhaustion returns nullptr rather than crashing.",
-  "code": r'''struct Order {
-  double px; int qty;
-  Order(double p, int q) : px(p), qty(q) { std::printf("ctor "); }
-  ~Order()                               { std::printf("dtor "); }
+ {"title": "Threads share memory, and a data race is undefined behaviour",
+  "text": "A std::thread is an independent instruction stream in the same address space: stacks are private, the heap and globals are shared, and the OS interleaves threads however it likes. When two threads touch the same location, at least one writes, and nothing orders them, that is a data race and the standard promises nothing at all. ++counter is load, add, store: at -O0 two threads of a million increments lose updates differently every run, and at -O2 the same code prints exactly 2,000,000 because the optimiser, assuming no race, folded each loop into one add. The right answer from a racy program is the scariest outcome. std::atomic fixes the count, and volatile does not: it stops the compiler caching a value and creates no ordering at all.",
+  "code": """long racy = 0; std::atomic<long> safe{0};
+auto work = [&] { for (int i = 0; i < 100000; ++i) {
+    ++racy;                                                    // DATA RACE -> UB
+    safe.fetch_add(1, std::memory_order_relaxed); } };         // atomic, unordered
+std::thread t1(work), t2(work); t1.join(); t2.join();
+std::cout << safe.load() << ' ' << (racy <= 200000) << ' '
+          << safe.is_lock_free() << '\\n';
+// 200000 1 1     -- safe is exact; racy is not even well-defined""",
+  "deck": "Deck U6 · slides 5–6, 9"},
+ {"title": "Happens-before, and the acquire/release handoff",
+  "text": "Correctness is not about time, it is about the happens-before relation: if A happens-before B, B sees A's writes, and otherwise there is no guarantee. Program order gives sequenced-before inside a thread; a release store synchronizes-with an acquire load that reads its value; thread start, join and a mutex unlock/lock pair make edges too; and the relation is transitive. Nothing else makes an edge — not volatile, not sleep(). The pattern behind every lock-free handoff is four numbered steps: write the payload, release-store a flag, acquire-load the flag, read the payload. (2) synchronizes-with (3), so (1) happens-before (4), with no lock anywhere. Make both orders relaxed and ThreadSanitizer reports the race.",
+  "code": """int payload = 0; std::atomic<bool> ready{false};
+std::thread prod([&] { payload = 42;                            // (1) write the data
+  ready.store(true, std::memory_order_release); });             // (2) release: publishes (1)
+std::thread cons([&] {
+  while (!ready.load(std::memory_order_acquire)) { }            // (3) acquire
+  std::printf("%d\\n", payload); });                             // (4) guaranteed to see (1)
+prod.join(); cons.join();
+// 42""",
+  "deck": "Deck U6 · slides 7, 12"},
+ {"title": "memory_order: pay only for what you can prove",
+  "text": "Every atomic operation takes an ordering. relaxed is atomic but orders nothing else — right for a free-running counter, never for handing data over. acquire/release is the workhorse pair. seq_cst, the default, adds one global order over all seq_cst operations and costs the strongest fences. The store-buffer litmus test shows why the choice is not academic: each thread stores its flag then loads the other's, and with relaxed the Apple M4 saw both loads return 0 in 199,793 of 200,000 trials, because a core's store waits in its buffer while its later load runs ahead. acquire/release does not forbid that outcome — only seq_cst does. Not seeing a reordering on one CPU proves nothing; reason from the model.",
+  "code": """int both = 0;
+for (int t = 0; t < 2000; ++t) {
+  std::atomic<int> x{0}, y{0}; int r1 = -1, r2 = -1;
+  std::thread a([&] { x.store(1); r1 = y.load(); });   // seq_cst: the default
+  std::thread b([&] { y.store(1); r2 = x.load(); });
+  a.join(); b.join(); both += (r1 == 0 && r2 == 0);
+}
+std::printf("both zero under seq_cst: %d of 2000\\n", both);
+// both zero under seq_cst: 0 of 2000   -- relaxed on an M4: 199,793 of 200,000""",
+  "deck": "Deck U6 · slides 10–11"},
+ {"title": "A lock on the hot path is a tail bomb; CAS is the lock-free atom",
+  "text": "Locks are the easy, correct way to get mutual exclusion — lock_guard or scoped_lock, never lock()/unlock() by hand — and a mutex barely dents the median: in the deck's four-thread counter it even beats an atomic at p50 (4.6 ns against 37). It detonates p99.9, 3–13x worse over five runs, because a contended loser sleeps on a futex and the scheduler decides when it wakes; a descheduled holder is a priority inversion with no bound. Every general lock-free structure sits instead on compare-and-swap: swap only if the value still equals what you expected, and on failure expected is refreshed so you recompute and retry — nobody is parked by the kernel. CAS compares bits, not history, so a recycled node can fool it (ABA), and the fixes (version tags, hazard pointers, epochs) are all memory-reclamation schemes.",
+  "code": """std::atomic<int> v{7}; int tries = 0;
+int expected = v.load(), desired;
+do { desired = expected * 2; ++tries; }        // recompute INSIDE the loop
+while (!v.compare_exchange_weak(expected, desired));   // swap only if unchanged
+int stale = 99;                                // a CAS with a stale expected FAILS
+bool ok = v.compare_exchange_strong(stale, 0); // ...and refreshes `stale`
+std::cout << v.load() << ' ' << tries << ' ' << ok << ' ' << stale << '\\n';
+// 14 1 0 14""",
+  "deck": "Deck U6 · slides 14–17"},
+ {"title": "The SPSC ring: one writer per index, two lines that make it correct",
+  "text": "Single producer, single consumer: the producer is the only writer of tail_ and the consumer the only writer of head_, so no CAS is needed at all — push has no loop and no retry, which makes it wait-free, and nothing is recycled, so there is no ABA. The counters are monotonic and the capacity a power of two, so the slot is pos & mask and tail - head stays right across unsigned wrap. The producer loads its own tail_ relaxed, acquire-loads head_ to see the slots the consumer freed, writes the payload first, then release-stores tail_ + 1. Those last two lines are the whole correctness argument. And each index owns a 64-byte line, because the two cores write them on every operation: sharing a line is correct but silently slow, and it is 2 of the 10 HW 6 points.",
+  "code": """struct Ring { explicit Ring(std::size_t cap) : mask_(cap - 1), buf_(cap) {}
+  bool push(std::uint64_t v) {                          // PRODUCER thread only
+    auto t = tail_.load(std::memory_order_relaxed);     // mine: nobody else writes it
+    if (t - head_.load(std::memory_order_acquire) == buf_.size()) return false;
+    buf_[t & mask_] = v;                                // (1) payload first
+    tail_.store(t + 1, std::memory_order_release); return true; }  // (2) publish
+  alignas(64) std::atomic<std::size_t> tail_{0}, head_{0};
+  std::size_t mask_; std::vector<std::uint64_t> buf_;
 };
-alignas(Order) std::byte slot[sizeof(Order)];      // bytes, no object yet
-Order* o = new (slot) Order(101.5, 200);           // construct IN the slot
-std::printf("%.1f %d ", o->px, o->qty);
-o->~Order();                                       // YOU end its life
-std::puts("");
-// ctor 101.5 200 dtor''',
-  "deck": "Deck U6 · slides 7, 9–10"},
- {"title": "The arena that resets, and std::pmr",
-  "text": "When a batch of objects dies together — one tick's scratch — do not free them one by one. A bump (arena) allocator keeps one offset into a slab: round it up to the request's alignment, hand out that address, advance, and reclaim everything at once by setting the offset back to zero. An alloc is an add, a mask and a compare, cheaper than a free-list pop; the prices are that you cannot free one object, reset() runs no destructors, and no pointer may survive the reset. C++17 ships the same idea as std::pmr::monotonic_buffer_resource over a buffer you supply, with release() as the reset — give it null_memory_resource() as upstream so overflow throws instead of silently falling back to the heap, and destroy every pmr container on it before you release.",
-  "code": r'''alignas(64) std::byte slab[256]; std::size_t off = 0;
-auto alloc = [&](std::size_t n, std::size_t a) -> void* {  // a = 2^k
-  std::size_t p = (off + a - 1) & ~(a - 1);                 // round up
-  if (p + n > sizeof slab) return nullptr;                  // full: loud
-  off = p + n; return slab + p; };                          // bump
-auto* s = alloc(3, 1);
-auto* d = static_cast<std::byte*>(alloc(sizeof(double), alignof(double)));
-std::printf("%td %zu ", d - slab, off);
-off = 0;                                   // reset(): the whole tick, O(1)
-std::printf("%d\n", alloc(3, 1) == s);
-// 8 16 1   -- the double was aligned to 8; after reset the slab is reused''',
-  "deck": "Deck U6 · slides 11–12"},
- {"title": "Hash tables: open addressing, not chaining",
-  "text": "Pick the container for the access pattern: ordered traversal favours a tree, the best element a heap, point lookup a hash — and each carries a cache cost big-O does not show. Order-ID and symbol lookups are the workhorse, and both collision strategies are O(1) on average; the constant is decided by memory layout. Chaining (std::unordered_map) makes each bucket a linked list of heap nodes, so every collision is a pointer chase and a likely miss, and a rehash is an unbounded O(n) event at a moment you did not choose. Open addressing probes the next slot of one flat array; a power-of-two size turns the modulo into an AND, and the probe usually stays in one cache line — size it once and keep the load factor under about 0.7. In the lab's bench-book, the std::string-keyed unordered_map is about 3.5× slower than an open-addressing SymMap, mostly from building and hashing a string per call.",
-  "code": r'''struct Slot { uint64_t key = 0; uint32_t val = 0; bool used = false; };
-std::array<Slot, 8> t{}; const uint64_t mask = 7;      // power of two -> AND, not %
-auto put = [&](uint64_t k, uint32_t v) {
-  uint64_t i = k & mask;
-  while (t[i].used && t[i].key != k) i = (i + 1) & mask;   // walk the NEXT slot
-  t[i] = {k, v, true};
-};
-put(1, 100); put(9, 900);                     // 9 & 7 == 1: they collide
-std::cout << t[1].key << ' ' << t[2].key << ' ' << t[2].val << '\n';
-// 1 9 900     -- the collision landed in the adjacent slot, same cache line''',
-  "deck": "Deck U6 · slides 15–16, 23"},
- {"title": "The flat, price-indexed book — and the band it really is",
-  "text": "Prices live on a fixed tick grid, so an integer index is exact and you never needed a general ordered map: convert the price to a tick once, at decode, and slot = tick - base_tick makes each level a slot in one contiguous array. Add and cancel index straight to the level, the touch is a cached best_bid / best_ask slot read with a single load, and matching walks adjacent slots in the direction the prefetcher expects; the only scan is a cancel that empties the touch. The trap is that a flat array covers a band, not all prices — 65,536 one-cent slots indexed absolutely from $0.00 only reach $655.35, and the arena's NFLX near $720 writes past the end of bid_ into ask_, the adjacent member. That is an intra-object overflow, so AddressSanitizer does not see it and a test suite that quotes near $100 stays green. Index against a base, bounds-check both ends, and re-base when the market walks out of the band.",
-  "code": r'''const double base = 99.00, tick = 0.01;        // index against a BASE tick
-std::array<uint32_t, 256> bid_qty{}; int best = -1;
-auto idx = [&](double px) { return int((px - base) / tick + 0.5); };
-auto add = [&](double px, uint32_t q) {
-  const int i = idx(px);
-  if (i < 0 || i >= 256) return false;         // the BAND check ASan cannot see
-  bid_qty[i] += q; if (i > best) best = i;     // O(1), one cache line
-  return true; };
-bool in  = add(100.00, 800);
-bool oob = add(720.00, 500);                   // $720 is off a $99.00-$101.55 band
-std::printf("%d %d %.2f %u\n", in, oob, base + best * tick, bid_qty[best]);
-// 1 0 100.00 800''',
-  "deck": "Deck U6 · slides 17–20"},
- {"title": "FIFO per level, and your place in it",
-  "text": "Price-time priority means better price first, then earlier arrival, and within one price the arena's engine holds a strict FIFO keyed on a monotonic sequence number, so ties are impossible. Model each level as an intrusive doubly linked FIFO whose nodes come from the pool: the links live inside the order, so push_back on arrival and erase on cancel are O(1) with no allocation, and an open-addressing id → node index gives cancel its O(1) lookup. Your fill chance is set by the quantity ahead of you; the arena hands it to you as queue_ahead in on_ack / on_queue (zero means you are next), and walking the level to recompute it is O(k) — do it on an ack, not per tick. Repricing forfeits all of it: cancel and re-post puts you at the tail, so move a quote only when the edge is worth your place in line.",
-  "code": r'''struct Node { std::uint32_t qty; Node *prev = nullptr, *next = nullptr; };
-struct Level { Node *head = nullptr, *tail = nullptr; std::uint32_t total = 0;
-  void push_back(Node* o) { o->prev = tail; (tail ? tail->next : head) = o; tail = o; total += o->qty; }
-  void erase(Node* o) { (o->prev ? o->prev->next : head) = o->next;
-                        (o->next ? o->next->prev : tail) = o->prev; total -= o->qty; }
-  std::uint32_t ahead(const Node* me) const { std::uint32_t q = 0;
-    for (auto* o = head; o != me; o = o->next) q += o->qty; return q; } };
-int main() { Node a{300}, b{200}, me{100}; Level L;
-  L.push_back(&a); L.push_back(&b); L.push_back(&me);    // arrival order
-  std::printf("%u ", L.ahead(&me)); L.erase(&a);         // a cancels ahead of us
-  std::printf("%u %u\n", L.ahead(&me), L.total); }
-// 500 200 300''',
+Ring r(4); int n = 0; for (int i = 0; i < 6; ++i) n += r.push(i);
+std::printf("%d accepted, 2 refused: full\\n", n);  // pop() is yours in the lab
+// 4 accepted, 2 refused: full""",
+  "deck": "Deck U6 · slides 19–20"},
+ {"title": "Bounded is a feature: back-pressure",
+  "text": "When the ring is full, push returns false — and that is not an error path, it is the one place in the design where you choose what to sacrifice: drop the newest, drop the oldest, or coalesce. For book snapshots, coalesce, since only the latest touch per symbol matters. Never spin on a full ring in the socket thread: you stop reading the wire, which is a lock's worst property back again. Unbounded queues are a trap that turns a slow consumer into a memory-and-latency blowout, and head-of-line blocking means one fat message delays every tick behind it, so keep items small, fixed-size and POD. Count the rejected pushes in a relaxed atomic: that counter is your storm detector for the Phase 3 report.",
+  "code": """std::array<int, 4> q{}; std::size_t head = 0, tail = 0; int latest = 0;
+std::atomic<std::uint64_t> dropped{0};
+auto push = [&](int v) {                            // bounded: false when full
+  if (tail - head == q.size()) { latest = v;        // coalesce: keep the newest
+    dropped.fetch_add(1, std::memory_order_relaxed); return false; }
+  q[tail++ & 3] = v; return true; };
+int accepted = 0;
+for (int tick = 1; tick <= 7; ++tick) accepted += push(tick);
+std::printf("%d %d %d dropped=%llu\\n", accepted, latest, q[head & 3],
+            (unsigned long long)dropped.load());
+// 4 7 1 dropped=3     -- 4 queued, 3 rejected and counted, tick 7 kept as the latest""",
   "deck": "Deck U6 · slides 21–22"},
- {"title": "Complexity that matters: rings and O(1) statistics",
-  "text": "Big-O hides the constant, and on the small N of a hot book the constant — memory accesses — is the whole story: finding a value among 64 elements, a red-black tree's six pointer hops can lose to a prefetched linear scan. Amortized is not worst case either: push_back's occasional O(n) regrow is a tail event, and reserve() removes it. The signal on top of the book follows the same rule. Keep the recent tape in a fixed ring buffer — power-of-two capacity, index with & (N - 1), static_assert it, because the unsigned head - count + i only wraps correctly when N divides 2^64 — and fold each tick into a running mean, Welford's variance and an EMA in O(1). Welford matters on prices near 100 with tiny variance, where sum(x²) - n·mean² cancels catastrophically.",
-  "code": r'''struct Online {                                    // O(1) time, O(1) space
-  long n = 0; double mean = 0, m2 = 0, ema = 0, a = 0.2;
-  void update(double x) { ++n; double d = x - mean;
-    mean += d / n;                                 // running mean
-    m2   += d * (x - mean);                        // Welford's M2
-    ema   = (n == 1) ? x : a * x + (1 - a) * ema; }
-  double var() const { return n > 1 ? m2 / (n - 1) : 0.0; }
+ {"title": "Across processes: the shared-memory ring, and C++20 coordination",
+  "text": "The same ring works between two processes if it lives in a mapping both see: shm_open plus ftruncate plus mmap(MAP_SHARED) gives two page tables over one set of physical pages, and lock-free atomics obey the same memory model across them — one release store, one acquire load, no kernel in the fast path. That is Project Phase 4's feed/strategy split: a crash in the feed cannot take the strategy down, and each process pins its own core. Three rules change: no pointers (an address means something in one process only — store indices), no std::string or vector inside (they own heap memory in one process), and only always-lock-free atomics, because a hidden lock lives in one address space. Off the hot path, C++20 ships the coordination you used to hand-roll: a std::latch start gate, atomic::wait/notify to sleep without a condition variable, and std::jthread with a stop_token for clean shutdown.",
+  "code": """struct ShmRing {                                      // POD: no pointers, no heap
+  static constexpr std::uint32_t CAPACITY = 1024;     // power of two
+  static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
+  void init() { head.store(0); tail.store(0); }       // creator, once
+  bool push(std::uint64_t v) { std::uint32_t t = tail.load(std::memory_order_relaxed);
+    if (t - head.load(std::memory_order_acquire) == CAPACITY) return false;
+    buf[t & (CAPACITY - 1)] = v; tail.store(t + 1, std::memory_order_release); return true; }
+  alignas(64) std::atomic<std::uint32_t> head, tail;  // consumer | producer writes
+  alignas(64) std::uint64_t buf[CAPACITY];            // inline data
 };
-Online o; for (double x : {2., 4., 4., 4., 5., 5., 7., 9.}) o.update(x);
-std::printf("%ld %.2f %.4f %.4f\n", o.n, o.mean, o.var(), o.ema);
-// 8 5.00 4.5714 5.2910''',
-  "deck": "Deck U6 · slides 25–27"}
+static ShmRing r; r.init(); std::printf("%zu %d\\n", sizeof r, int(r.push(42)));
+// 8320 1""",
+  "deck": "Deck U6 · slides 24–26"}
 ],
 "hft": {
- "text": "Session 6 makes on_book cost the same every tick: pooled memory, a mirrored flat book, and signals updated in O(1) — the session Project Phase 2 rests on.",
+ "text": "Your bot already has two threads; this session makes the handoff between them correct, lock-free and bounded — first across threads (Phase 3), then across processes (Phase 4).",
  "paragraphs": [
-  "on_book runs on the client's receive thread for every snapshot, and everything in this session is about making that call cost the same every time. Start by finding the hidden new: every std::string you build, map node you insert or vector you grow inside on_book or on_ack is an allocation, and each one is usually fast and occasionally a lock, a page fault or a walk of a fragmented free list. That list is your Phase 2 target.",
-  "The properties you buy with a pool are the mirror image of malloc's — no lock because it is per-thread, no syscall because the memory was reserved before the session opened, O(1) because allocation is a free-list pop, bounded because you sized it for the worst tick — and the lab's bench-alloc shows the result as a distribution: the heap has a tail that appears in every run; the pool's is flat unless a timer interrupt lands in the batch. Two operational details bite every year. An ObjectPool<Order, 4096> is on the order of 128 KB, so it is a member or a static, never a local on a 512 KB thread stack. And every alloc needs its free: forget one and alloc() returns null a few thousand ticks in and the bot goes quiet without crashing — log exhaustion loudly.",
-  "Then mirror the book locally so on_book can go decode → update → decide in cache. Turn the symbol into a small integer once, with an open-addressing SymMap filled at startup, and from there every access is into fixed per-symbol arrays: the touch as integer ticks, your own resting orders from a pool, their queue_ahead from on_ack and on_queue. The engine is a price-time CLOB keyed on a monotonic sequence, so the local model can be exact rather than approximate.",
-  "The flat book's failure mode deserves its own sentence in your write-up. A band indexed absolutely from $0.00 corrupts the other side of your own book for any name above $655.35 — green CI, clean sanitizer, and a book showing size nobody quoted, so your bot crosses a spread that does not exist. Index against a base, bounds-check both ends on the write path, and say how you re-base when the market walks out of the band; do not just make the array bigger, because megabytes of empty slots throw away the small working set you built this for.",
-  "Signals ride on the same discipline: fold microprice into an Online state per symbol, keep the recent tape in a Ring, and never loop a window on the hot path — an O(k) recompute costs nothing most of the time and blows out exactly when volatility raises the message rate. Measure everything the way HW 6 grades it: pool against new/delete and the flat book against std::map, warm-up in, machine stated, and read the tail rather than the median, because that is where a rehash or a node allocation lands."
+  "You already have two threads whether you planned it or not. IXWebSocket reads the socket and decodes on its own background receive thread, then calls on_book there; Project Phase 3 moves your strategy onto its own std::jthread. The moment a tick crosses that boundary you are in the C++ memory model, and “it worked on my laptop” is not evidence: races are timing-dependent, so they pass on a quiet machine and fail under load — precisely when the arena is grading you.",
+  "The Session 6 pipeline is fixed in shape. The receive thread copies the tick into a small POD — a symbol id from your symbol map, never a std::string — pushes it into your HW 6 ring and returns. The strategy thread drains the ring, keeps only the latest tick per symbol, and decides. A full ring drops and counts; it never blocks the wire. One gotcha from the deck: the client's latency helpers only time orders sent inside on_book, so decide() must record now - t.recv itself.",
+  "Lock-free is not “faster locks”, it is a different guarantee: no thread can be stalled by another thread's scheduling. That is why it fixes the tail rather than the mean. The deck's queue benchmark makes it concrete on a laptop with no pinning: the SPSC ring sits at 83–125 ns p50 against 0.2–1.3 µs for a mutex-plus-deque, and its p99.9 stays far below the mutex queue's even when scheduler noise hits both.",
+  "Audit the client too, not only your code. The reference client's book cache and latency histogram each take a std::mutex — the receive thread locks one on every book_snapshot, and anything else that reads the cache contends with it. Know every lock on your path, and keep the ones you cannot remove off the tick.",
+  "The correctness bar is tool-enforced, not argued: one producer, one consumer, millions of items, nothing lost or reordered, and the same run silent under -fsanitize=thread in its own binary. If TSan flags a ring that passes every other test, you weakened a cross-thread acquire/release to relaxed or read the payload before checking the index — fix the pairing, never add a mutex or a suppression. And the ring is safe for exactly one producer and one consumer; a second pusher is undefined behaviour that can still give a clean run on a lucky day."
  ],
  "example": {
   "title": "In the arena",
-  "code": r'''// include/order_book.hpp
-// HW 6, part 2 (Session 6) — a fast order book (flat, price-indexed) + a fast symbol->id map.
-// side 'B'=bid, 'S'=ask.  SymMap::get returns (uint64_t)-1 if absent.
-//
-// Range warning (see labs/session06.md, step B2): a flat array of N one-cent slots
-// is a BAND, not "all prices". 1<<16 slots indexed absolutely from $0.00 covers
-// only $0.00-$655.35, and the arena lists NFLX near $720 and META near $580 —
-// an absolute index walks off the end and, because the two side arrays are
-// adjacent members, silently corrupts the OTHER side of your own book.
-struct Book {
-    void add(uint64_t id, char side, double px, uint32_t qty);
-    void cancel(uint64_t id);
-    double best_bid() const { return 0.0;   /* TODO(student): O(1) */ }
-    double best_ask() const { return 0.0;   /* TODO(student): O(1) */ }
-};''',
-  "text": "include/order_book.hpp in your starter repo — the HW 6 order-book stub, band warning included (bodies of add/cancel and the SymMap half elided here). The graded contract is four functions on Book plus put/get on SymMap; include/pool.hpp is its twin for part 1, and starters/session06/bench_book.cpp times your book against std::map and std::unordered_map."
+  "code": """// hft/cpp_client/src/arena_client.cpp — dispatch(), on the receive thread
+        {
+            std::lock_guard<std::mutex> lk(book_mtx_);
+            books_[bv.symbol] = bv;
+        }
+        on_book_snapshot(bv, recv_time);""",
+  "text": "hft/cpp_client/src/arena_client.cpp — the reference client locks book_mtx_ on the receive thread for every book_snapshot before it calls your handler, and hft/cpp_client/include/arena_client.hpp declares that mutex next to the latency histogram's. Phase 3 is where you decide which locks stay on the path: push a POD tick into your ring from on_book and let the strategy thread do the rest."
  }
 },
 "interview": [
- {"q": "Why is the general-purpose allocator a problem on a low-latency path?",
-  "a": "Because its cost is unpredictable rather than merely large. It may take a lock on a shared structure, search or split blocks, coalesce on free, or fall through to brk/mmap and a first-touch page fault in the kernel. The median call is around ten nanoseconds, which is why the mean looks fine, but the occasional slow call — hundreds of nanoseconds to microseconds — lands on a busy tick and becomes your p99.9, and you do not control when it happens.",
-  "level": "warm-up", "skill": "cpp.raw-allocation"},
- {"q": "What does “amortized O(1)” mean for vector::push_back, and why might that not be good enough?",
-  "a": "Most pushes are a single store; when capacity runs out the vector allocates a larger buffer and moves every element, which is O(n), and averaging that over the whole sequence gives constant cost per push. On a latency path you are graded on the worst operation, not the average: that one reallocation is an allocation plus an O(n) copy landing on an arbitrary tick. reserve() the capacity up front and the spikes disappear.",
-  "level": "warm-up", "skill": "perf.complexity-in-cache-terms"},
- {"q": "Sketch a fixed-size object pool and state the complexity of alloc and free.",
-  "a": "One contiguous slab of N slots, each big enough and aligned for T and at least one pointer wide, plus a head pointer to a singly linked free list threaded through the unused slots — so the list costs no extra memory. alloc pops the head, free pushes the slot back; both O(1), no search, no lock, no syscall, and LIFO reuse keeps slots cache-warm. Exhaustion returns null, which the caller must handle and should log loudly. Practically the pool is a member or a static, because a few thousand slots is well over 100 KB.",
-  "level": "core", "skill": "perf.object-pool"},
- {"q": "What does placement new do, and what obligation does it create?",
-  "a": "new (ptr) T{args...} constructs a T in storage you already own: it runs the constructor and allocates nothing. The obligation is symmetry — no delete will ever be called for it, so you must call p->~T() explicitly before returning the slot to the pool, and calling delete instead would free memory the heap never handed out. You are also responsible for the storage being correctly sized and aligned for T, which is why slots are declared alignas(T). The explicit destructor ends the object's life; it frees nothing.",
-  "level": "core", "skill": "cpp.placement-new"},
- {"q": "Why size an open-addressing hash table to a power of two, and what is the worst thing std::unordered_map can do to you on a hot path?",
-  "a": "A power-of-two capacity makes the wrap hash & (size - 1) instead of a modulo — one AND instead of an integer division — and the probe advance i = (i + 1) & mask. Keep the load factor under roughly 0.7 and size it once, because probe runs lengthen sharply past that. The worst thing unordered_map does is rehash: an unbounded O(n) reallocation at a moment you did not choose. The second is chaining — each bucket is a list of separately allocated nodes, so a collision is a pointer chase and a likely miss — and keyed on std::string, every lookup builds and hashes a string first.",
-  "level": "core", "skill": "perf.open-addressing-hash"},
- {"q": "Why can a flat price-indexed array beat std::map for an order book even though the map is O(log n)?",
-  "a": "Because prices sit on a tick grid, so tick - base_tick is an exact integer index and the lookup is arithmetic instead of a search. The map's pointer hops are each a potential cache miss at around 100 ns; the array is one indexed load into a small, dense working set. Add and cancel are O(1), the touch is a cached slot read with zero traversal, and matching walks adjacent slots sequentially. The only scan is a cancel that empties the touch — rare, and cache-friendly.",
-  "level": "core", "skill": "trading.flat-order-book"},
- {"q": "How do you track your own queue position, and why does it matter?",
-  "a": "At each price the venue holds a FIFO keyed on a monotonic sequence number, so your position is the remaining quantity of every order that arrived before yours. The arena hands it to you: on_ack carries queue_ahead and level_qty when your order rests, and on_queue updates them as fills and cancels ahead of you land; queue_ahead == 0 means you are next. It matters because fill probability is a function of the size in front of you, and because a reprice resets it — cancel and re-post puts you at the back — so a quote adjustment is a real, measurable cost.",
-  "level": "core", "skill": "trading.queue-position"},
- {"q": "Your flat book is indexed absolutely from $0.00 with 65,536 one-cent slots. A name lists at $720, nothing crashes, sanitizers are clean and CI is green. What is happening, and how do you find it?",
-  "a": "The array is a $655.35-wide band, so $720 indexes past the end. Because the bid and ask arrays are adjacent members of one object, the write lands on your own other side — a bid at $719.98 is tick 71,998, 6,462 slots past bid_'s end, so it adds size to the ask side at $64.62. The book then shows resting size no venue sent, and the bot crosses a spread that does not exist. ASan cannot see it because it instruments boundaries between allocations, not between two members of one object, and tests that quote near $100 never reach the edge. Fix: index against a base tick set from the first price seen, bounds-check both ends on every write, and re-base or reject-and-log out-of-band prices. To catch it, diff against a slow map-based shadow book on a replayed tape and stop at the first divergence.",
-  "level": "senior", "skill": "trading.flat-order-book"},
- {"q": "You put a pmr::vector on a monotonic_buffer_resource inside on_book and call release() at the end of the tick. Where are the traps?",
-  "a": "Lifetime order first: release() reclaims the whole slab, so every container that borrowed from it must be destroyed before the reset — otherwise its destructor touches memory the resource has already handed back and a later tick overwrites live data. The idiom is to scope the scratch container in an inner block and release after it closes. Second, overflow: with the default upstream, a working set bigger than the buffer silently falls back to the heap, so you are allocating on the hot path again with nothing in the source to show it; pass null_memory_resource() as upstream so overflow throws instead.",
-  "level": "senior", "skill": "perf.arena-allocator"}
+ {"q": "What is a data race, and why is “it printed the right number” not evidence that there isn't one?",
+  "a": "A data race is two threads accessing the same memory location, at least one writing, with no happens-before edge ordering them. The standard makes that undefined behaviour, not “a stale value”: the compiler is allowed to transform the code as if the race cannot happen. The classic demonstration is two threads incrementing a plain long a million times each — at -O0 you lose updates and get a different total every run, at -O2 you get exactly 2,000,000 because the optimiser folded each loop into one add. The correct-looking answer is still a race; only a happens-before argument or ThreadSanitizer tells you otherwise.",
+  "level": "warm-up", "skill": "cpp.data-races"},
+ {"q": "What does compare_exchange do, why is it always written in a loop, and when do you use weak versus strong?",
+  "a": "It atomically compares the object with an expected value and, only if they are equal, replaces it with the desired value; it returns whether it succeeded and, on failure, overwrites expected with the value actually seen. It lives in a loop because failure means someone else changed the object, so you recompute your update from the refreshed value and try again — the update must be recomputed inside the loop or you keep proposing a value derived from stale data. weak may fail spuriously (a load-linked/store-conditional interrupted on Arm), so it is the cheap choice inside a retry loop; strong fails only on a genuine mismatch and suits a one-shot attempt you branch on.",
+  "level": "warm-up", "skill": "cpp.compare-and-swap"},
+ {"q": "Explain the acquire/release pattern, and say when memory_order_relaxed is a bug.",
+  "a": "The producer writes a plain payload and then release-stores an atomic flag; the consumer acquire-loads the flag and, once it observes the stored value, reads the payload. The release store synchronizes-with the acquire load, so everything sequenced before the store happens-before everything sequenced after the load, and the payload is guaranteed visible. relaxed is right when you need atomicity but no ordering — a free-running counter of dropped ticks whose total is read later. It is a bug whenever the atomic signals that other memory is ready, because relaxed creates no happens-before edge: the consumer can see the flag set while the payload writes are still invisible, and TSan will report it.",
+  "level": "core", "skill": "cpp.atomics-memory-order"},
+ {"q": "Why does an uncontended mutex look cheap in a benchmark and still ruin a latency tail in production?",
+  "a": "Uncontended, lock and unlock are a couple of atomic operations — nanoseconds, which is what a naive benchmark measures; in a contended burst the holder can even win the median by running many uncontended acquisitions in a row. Contended, the loser blocks in the kernel on a futex: a context switch and a scheduler wake-up, microseconds, and unbounded if a descheduled thread holds the lock (priority inversion). Contention correlates with market activity, so the expensive case lands on exactly the ticks you needed to win. The lab's lock_tail measurement shows it: mutex p50 below the atomic's, p99.9 several times worse. Locks are correct; they belong off the tick path.",
+  "level": "core", "skill": "perf.lock-tail-cost"},
+ {"q": "In an SPSC ring's push, which memory orders go where, and why?",
+  "a": "The producer loads its own tail_ relaxed — nobody else writes it, so relaxed is the correct order, not a shortcut. It acquire-loads head_, so it observes the consumer's release store and knows the slot it is about to overwrite has really been read. It writes the payload into buf_[t & mask], then release-stores tail_ + 1, so the slot write cannot be reordered after the publication — which is what guarantees the consumer never reads a slot before its data is visible. pop() is the mirror: own head_ relaxed, acquire tail_, read, release head_. Getting the release on the published index wrong is the classic bug, and it often still passes on x86.",
+  "level": "core", "skill": "perf.spsc-ring"},
+ {"q": "Why must the ring's capacity be a power of two, and why are the two indices alignas(64)?",
+  "a": "A power-of-two capacity makes the wrap pos & (cap - 1) instead of pos % cap, replacing an integer division with a one-cycle AND on the hottest line of the queue; and with monotonic unsigned counters, tail - head stays correct across wraparound because the difference never exceeds the capacity. The alignment is about false sharing: the producer writes tail_ on every push and the consumer writes head_ on every pop, so if they share a 64-byte line the two cores invalidate each other's copy on every operation and the queue slows down the harder you drive it — correct, but silently serialised. A third aligned group keeps the read-only capacity, mask and buffer pointer off both hot lines.",
+  "level": "core", "skill": "perf.data-layout"},
+ {"q": "The ring is full during a message storm. What are your options, and which one fits market data?",
+  "a": "Spin until there is room, grow the buffer, drop the newest, drop the oldest, or coalesce. Spinning is the worst on the socket thread: you stop reading the wire, which reintroduces a lock's blocking behaviour. Growing without bound turns a latency problem into a memory problem and hides the slow consumer until the machine swaps. For top-of-book snapshots coalescing is right — a newer snapshot supersedes an older one, so keeping only the latest per symbol stays current and bounded. Fills and acks are not idempotent, so they cannot be dropped; they belong on a separately sized queue where full is an alert. Either way, count the rejects in a relaxed atomic and report them.",
+  "level": "core", "skill": "perf.back-pressure"},
+ {"q": "You want the same lock-free ring between two processes rather than two threads. What changes, and what does not?",
+  "a": "The synchronisation does not change: you create the region with shm_open, size it with ftruncate and mmap it MAP_SHARED into both processes, and the atomics work across it because cache coherence is a hardware property, not a process property — one release store and one acquire load give the same happens-before edge spanning two address spaces. What changes is the layout contract. No pointers, because an address is only meaningful in one process, so you store indices; no std::string or std::vector, because they own heap memory in one process; and only always-lock-free atomics, which is why the ring static_asserts is_always_lock_free — a lock-based atomic's hidden lock lives in one address space. The creator calls init() exactly once, before the other side attaches.",
+  "level": "senior", "skill": "perf.shared-memory-ring"},
+ {"q": "What is the ABA problem, and does it affect an SPSC ring buffer? Which progress guarantee does its push give?",
+  "a": "ABA is when a CAS succeeds because the value it compares has returned to its original bit pattern while the structure changed underneath — classically a lock-free stack whose popped node was freed and pushed back, so the old head pointer looks valid but its next field is stale. The fixes (a version tag CAS'd with the pointer, hazard pointers, epochs) are memory-reclamation schemes. It does not affect an SPSC ring: the ring does no CAS, and its indices are monotonic counters rather than recycled pointers. And because push has no retry loop — a bounded number of its own steps, always — it is wait-free, not merely lock-free; lock-free only promises that some thread progresses.",
+  "level": "senior", "skill": "cpp.compare-and-swap"}
 ]
 }

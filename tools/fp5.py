@@ -1,173 +1,173 @@
 # -*- coding: utf-8 -*-
-"""Session 5 focus — Templates, compile-time & CRTP (deck U5, labs/session05.md,
-session5_talking_points.md). The midterm (scope Sessions 1-4) runs first that
-night; the lecture is the 50 minutes after the break, the lab finishes at home.
+"""Session 5 focus — memory pools & the order book (deck U5, labs/session05.md,
+speaker guide session5_talking_points.md).
 
+Pool / placement-new / pmr / hash / flat-book / ring / Welford wording reused from
+the pre-resequence site where the topic only moved; every slide cited to U5.
 Every `code` snippet is compiled and run by tools/validate_focus.py.
 """
 
-# "v_s5_cK": number of leading display lines that are file-scope declarations
-FILE_SCOPE = {
-    "v_s5_c1": 8,
-    "v_s5_c2": 5,
-    "v_s5_c3": 7,
-    "v_s5_c4": 7,
-    "v_s5_c5": 5,
-    "v_s5_c6": 8,
-    "v_s5_c7": 7,
-}
+FILE_SCOPE = {}   # "v_s5_cK": number of leading lines that go at file scope
 
 S = {
 "n": 5,
-"focus": "Templates, compile-time & CRTP",
-"tagline": "Session 4 priced every decision made at run time; tonight you make it at build time instead — one definition, one fully inlined function per type, and the vtable row of the benchmark disappears.",
+"focus": "Memory pools & the order book",
+"tagline": "Allocation that costs the same every tick, and a book whose top is one load away — the two structures the rest of your hot path stands on.",
 "concepts": [
- {"title": "A template is a recipe, not code",
-  "text": "template <class T> is a blueprint: the compiler instantiates it — generates a real function or class — the first time you use it with concrete arguments, and each instantiation is as visible to the optimiser as hand-written code. A non-type parameter puts a value in the type: Ring<double, 8> knows its capacity at compile time, so the wrap mask N - 1 is a constant, the storage is inline with no heap and no size field, and a static_assert on N rejects Ring<int, 6> at build time. The prices are real too: definitions live in headers, and every distinct instantiation is separate machine code that grows the binary and competes for the instruction cache.",
-  "code": """template <class T, std::size_t N> class Ring {
-  static_assert(N > 0 && (N & (N - 1)) == 0, "N must be a power of two");
-  std::array<T, N> buf_{};  std::size_t head_ = 0;      // inline: no heap
-public:
-  void push(const T& x) { buf_[head_++ & (N - 1)] = x; }
-  std::size_t size() const { return head_ < N ? head_ : N; }
-  const T& back() const { return buf_[(head_ - 1) & (N - 1)]; }
+ {"title": "The fixed-size object pool",
+  "text": "malloc is not slow — it is fast on average and unpredictable: a shared, thread-safe heap that takes locks, calls the kernel for pages when it runs dry, and fragments over a session, so the same new+delete of a 64-byte order is about 11–21 ns on average and 0.5–0.9 µs in its worst batch. Flip every property and you have the pool: one block size, one slab owned since startup, and a singly linked free list threaded through the *unused* slots, so the free slots are the list and cost no extra memory. Allocation pops the head, free pushes it back, both O(1) with no search, no lock and no syscall — and LIFO reuse hands back a slot that is still hot in L1. Measured in the lab, the pool's mean is several times lower, but the sentence HW 5 asks you to defend is that its number is stable.",
+  "code": r'''struct Slot { Slot* next; };
+Slot slab[4]; Slot* free_ = nullptr;                   // ONE pre-owned block
+for (auto& s : slab) { s.next = free_; free_ = &s; }   // thread the free-list
+Slot* a = free_; free_ = a->next;                      // alloc: O(1) pop
+Slot* b = free_; free_ = b->next;                      // alloc: O(1) pop
+b->next = free_; free_ = b;                            // free:  O(1) push
+Slot* c = free_; free_ = c->next;                      // alloc again
+std::printf("%d %d %d\n", a != b, c == b, free_ != nullptr);
+// 1 1 1   -- the freed slot is handed straight back, still hot in L1''',
+  "deck": "Deck U5 · slides 6–7, 9, 14"},
+ {"title": "Storage versus lifetime: placement new",
+  "text": "In C++ getting bytes and starting an object's life are two separate steps. A pool does the first once, at startup; new (ptr) T{...} does the second per object — it runs only the constructor, in memory you already own, and allocates nothing. The obligation is symmetry: nobody will run the destructor for you, so you call p->~T() before the slot goes back to the pool (delete would free memory the heap never gave you), and the storage must be sized and aligned for T, which is why slots are declared alignas(T). The explicit destructor call ends the object's life; it does not free anything. ObjectPool<T, N> wraps exactly this: a variadic alloc(Args&&...) forwards into placement new, and exhaustion returns nullptr rather than crashing.",
+  "code": r'''struct Order {
+  double px; int qty;
+  Order(double p, int q) : px(p), qty(q) { std::printf("ctor "); }
+  ~Order()                               { std::printf("dtor "); }
 };
-Ring<double, 8> mids;                                   // capacity is in the TYPE
-for (int i = 0; i < 10; ++i) mids.push(100.0 + i * 0.01);
-std::printf("%zu %.2f %zu\\n", mids.size(), mids.back(), sizeof(mids));
-// 8 100.09 72""",
-  "deck": "Deck U5 · slides 6–7"},
- {"title": "Deduction, and specialising the type that deserves it",
-  "text": "You rarely spell template arguments: the compiler deduces them from the call by matching each argument to its parameter, and it tries no conversions, so max_of(3, 4.5) is a conflict rather than a silent promotion. When one type deserves hand-tuning it gets its own full specialization; a partial specialization covers a whole family (every pointer, every Ring<T, 8>) and is allowed for class templates only — functions overload instead. The most specialised match always wins.",
-  "code": """struct Price { std::int64_t ticks; };
-template <class T> struct Wire    { static const char* fmt() { return "generic"; } };
-template <> struct Wire<Price>    { static const char* fmt() { return "fixed-point"; } };
-template <class T> struct Wire<T*> { static const char* fmt() { return "pointer"; } };
-template <class T> T max_of(T a, T b) { return a < b ? b : a; }
-std::printf("%s %s %s %.1f\\n", Wire<int>::fmt(), Wire<Price>::fmt(),
-            Wire<Price*>::fmt(), max_of<double>(3, 4.5));   // explicit: no conflict
-// generic fixed-point pointer 4.5""",
-  "deck": "Deck U5 · slide 8"},
- {"title": "Packs, folds and the overload{} visitor",
-  "text": "typename... binds any number of types; a C++17 fold collapses the pack over an operator in one line — no recursion, no base case — and sizeof... is its length as a compile-time constant. A pack of base classes is just as legal: overload inherits from every lambda you hand it and pulls all their call operators into one overload set, which is Session 4's variant visitor in two lines. Delete one lambda and std::visit refuses to compile because the visitor is no longer exhaustive — the missing message type is a build error, not a production surprise.",
-  "code": """template <class... Ts> constexpr auto sum(Ts... xs) { return (xs + ...); }
-template <class... Fs> struct overload : Fs... { using Fs::operator()...; };
-struct Book { double mid; };  struct Fill { int qty; };
-using Msg = std::variant<Book, Fill>;
-const char* route(const Msg& m) {
-  return std::visit(overload{[](const Book&) { return "book"; },
-                             [](const Fill&) { return "fill"; }}, m); }
-static_assert(sum(1, 2, 3, 4) == 10);            // the compiler did the addition
-std::printf("%s %s %.2f\\n", route(Book{100.01}), route(Fill{5}), sum(0.5, 0.25));
-// book fill 0.75""",
-  "deck": "Deck U5 · slides 10–11"},
- {"title": "Traits, concepts and if constexpr",
-  "text": "A type trait is a question the compiler answers about T — is_integral_v, is_trivially_copyable_v, your own is_wire_msg — and the answer costs nothing at run time. A C++20 concept names a requirement and replaces the SFINAE trick of making a signature fail to substitute: the error moves to the call site and says which requirement was not met. if constexpr then gives one template a separate path per type: the untaken arm is discarded, never instantiated, so an arm that would be ill-formed for the other types is fine, and a final static_assert turns a forgotten type into a build error.",
-  "code": """template <class T> concept Arithmetic = std::is_arithmetic_v<T>;
-template <Arithmetic T> std::size_t wire_size(T) {
-  if constexpr (std::is_same_v<T, bool>)       return 1;   // bool first: it is integral
-  else if constexpr (std::is_integral_v<T>)    return sizeof(T);
-  else                                         return 8;   // price as int64 ticks
-}
-struct Fill { int qty; };
-std::printf("%zu %zu %zu %d\\n", wire_size(true), wire_size(42), wire_size(100.25),
-            (int)std::is_trivially_copyable_v<Fill>);   // wire_size("x"): not Arithmetic
-// 1 4 8 1""",
-  "deck": "Deck U5 · slides 12–14"},
- {"title": "constexpr, consteval and static_assert",
-  "text": "Let the compiler compute whatever does not depend on the market. A constexpr function can run at compile time and is an ordinary function when its inputs are not constant; consteval must run at compile time, so calling it with a runtime value is a build error. A tick table built that way ships as read-only data — no startup code, one load per lookup — and static_assert is where every assumption lives (fee rates, table values, sizeof(Level) == 16 so four levels share a cache line) so that a violation fails the build rather than the market.",
-  "code": """consteval std::int64_t bps(double r) { return std::int64_t(r * 10'000 + 0.5); }
-struct TickTable { std::array<std::int64_t, 256> px{};
-  constexpr TickTable() { for (int i = 0; i < 256; ++i) px[i] = 1'000'000 + i * 100; } };
-constexpr TickTable kTicks{};                    // built BY THE COMPILER
-struct Level { std::int64_t px; std::int32_t qty, orders; };
-static_assert(kTicks.px[50] == 1'005'000 && sizeof(Level) == 16);
-constexpr auto taker = bps(0.0015), maker = bps(0.0010);
-std::printf("%lld %lld %lld\\n", (long long)taker, (long long)maker, (long long)kTicks.px[50]);
-// 15 10 1005000""",
-  "deck": "Deck U5 · slide 16"},
- {"title": "CRTP: the override hook without the vtable",
-  "text": "The Curiously Recurring Template Pattern templates a base on the class that derives from it, so the base can static_cast down and call the derived hook: the target is known from the type, the body inlines, and there is no vptr and no indirect branch. It keeps Session 4's design — shared logic in the base, the strategy fills in one hook — and in dispatch_bench the CRTP row lands on the direct-call row (0.23 ns against 0.22 ns on the deck's M4) instead of the virtual row (0.70 ns, 4.32 ns on a mixed stream). The price: Strategy<Momentum> and Strategy<MeanRevert> share no base type, so a set chosen at run time needs a variant or grouping by type at the edge.",
-  "code": """struct Book { double obi; };
-template <class D> struct Strategy {                    // no virtual anywhere
-  double signal(const Book& b) const { return static_cast<const D*>(this)->signal_impl(b); }
-  int side(const Book& b) const { double s = signal(b); return s > 0.1 ? 1 : s < -0.1 ? -1 : 0; }
+alignas(Order) std::byte slot[sizeof(Order)];      // bytes, no object yet
+Order* o = new (slot) Order(101.5, 200);           // construct IN the slot
+std::printf("%.1f %d ", o->px, o->qty);
+o->~Order();                                       // YOU end its life
+std::puts("");
+// ctor 101.5 200 dtor''',
+  "deck": "Deck U5 · slides 8, 10–11"},
+ {"title": "The arena that resets, and std::pmr",
+  "text": "When a batch of objects dies together — one tick's scratch — do not free them one by one. A bump (arena) allocator keeps one offset into a slab: round it up to the request's alignment, hand out that address, advance, and reclaim everything at once by setting the offset back to zero. An alloc is an add, a mask and a compare, cheaper than a free-list pop; the prices are that you cannot free one object, reset() runs no destructors, and no pointer may survive the reset. C++17 ships the same idea as std::pmr::monotonic_buffer_resource over a buffer you supply, with release() as the reset — give it null_memory_resource() as upstream so overflow throws instead of silently falling back to the heap, and destroy every pmr container on it before you release.",
+  "code": r'''alignas(64) std::byte slab[256]; std::size_t off = 0;
+auto alloc = [&](std::size_t n, std::size_t a) -> void* {  // a = 2^k
+  std::size_t p = (off + a - 1) & ~(a - 1);                 // round up
+  if (p + n > sizeof slab) return nullptr;                  // full: loud
+  off = p + n; return slab + p; };                          // bump
+auto* s = alloc(3, 1);
+auto* d = static_cast<std::byte*>(alloc(sizeof(double), alignof(double)));
+std::printf("%td %zu ", d - slab, off);
+off = 0;                                   // reset(): the whole tick, O(1)
+std::printf("%d\n", alloc(3, 1) == s);
+// 8 16 1   -- the double was aligned to 8; after reset the slab is reused''',
+  "deck": "Deck U5 · slides 12–13"},
+ {"title": "Hash tables: open addressing, not chaining",
+  "text": "Pick the container for the access pattern: ordered traversal favours a tree, the best element a heap, point lookup a hash — and each carries a cache cost big-O does not show. Order-ID and symbol lookups are the workhorse, and both collision strategies are O(1) on average; the constant is decided by memory layout. Chaining (std::unordered_map) makes each bucket a linked list of heap nodes, so every collision is a pointer chase and a likely miss, and a rehash is an unbounded O(n) event at a moment you did not choose. Open addressing probes the next slot of one flat array; a power-of-two size turns the modulo into an AND, and the probe usually stays in one cache line — size it once and keep the load factor under about 0.7. In the lab's bench-book, the std::string-keyed unordered_map is about 3.5× slower than an open-addressing SymMap, mostly from building and hashing a string per call.",
+  "code": r'''struct Slot { uint64_t key = 0; uint32_t val = 0; bool used = false; };
+std::array<Slot, 8> t{}; const uint64_t mask = 7;      // power of two -> AND, not %
+auto put = [&](uint64_t k, uint32_t v) {
+  uint64_t i = k & mask;
+  while (t[i].used && t[i].key != k) i = (i + 1) & mask;   // walk the NEXT slot
+  t[i] = {k, v, true};
 };
-struct Momentum : Strategy<Momentum> {
-  double signal_impl(const Book& b) const { return 0.5 * b.obi; } };
-template <class S> int decide(const Strategy<S>& s, const Book& b) { return s.side(b); }
-Momentum m;
-std::printf("%d %d %zu\\n", decide(m, Book{0.6}), decide(m, Book{-0.1}), sizeof(Momentum));
-// 1 0 1""",
-  "deck": "Deck U5 · slides 17–18"},
- {"title": "Policy-based design: behaviour as template parameters",
-  "text": "Compose a class from small policy types, one decision each, and changing a policy is changing a type: the compiler generates a fresh, fully inlined class instead of a flag you test every tick. The arithmetic here is worth doing once: at $100 a 15 bps taker fee is $0.15 a share against the $0.01 half-spread you are chasing, while posting earns the 10 bps rebate — the fee policy is worth more than most signals, and a static_assert can prove at build time that posting beats crossing. Anything an operator must change without a rebuild (risk limits, kill switches) is never a policy.",
-  "code": """struct TakerFees { static constexpr double rate = +0.0015; };
-struct MakerFees { static constexpr double rate = -0.0010; };
-struct NoSkew  { static constexpr double skew(int) { return 0.0; } };
-template <class Fee, class Skew> struct Quoter {
-  static constexpr double edge(double half, double px, int pos)
-  { return half - Fee::rate * px + Skew::skew(pos); } };
-using Aggressive = Quoter<TakerFees, NoSkew>;  using Passive = Quoter<MakerFees, NoSkew>;
-static_assert(Passive::edge(0.01, 100.0, 0) > Aggressive::edge(0.01, 100.0, 0));
-std::printf("%+.4f %+.4f\\n", Aggressive::edge(0.01, 100.0, 0), Passive::edge(0.01, 100.0, 0));
-// -0.1400 +0.1100""",
-  "deck": "Deck U5 · slide 19"}
+put(1, 100); put(9, 900);                     // 9 & 7 == 1: they collide
+std::cout << t[1].key << ' ' << t[2].key << ' ' << t[2].val << '\n';
+// 1 9 900     -- the collision landed in the adjacent slot, same cache line''',
+  "deck": "Deck U5 · slides 16–17, 24"},
+ {"title": "The flat, price-indexed book — and the band it really is",
+  "text": "Prices live on a fixed tick grid, so an integer index is exact and you never needed a general ordered map: convert the price to a tick once, at decode, and slot = tick - base_tick makes each level a slot in one contiguous array. Add and cancel index straight to the level, the touch is a cached best_bid / best_ask slot read with a single load, and matching walks adjacent slots in the direction the prefetcher expects; the only scan is a cancel that empties the touch. The trap is that a flat array covers a band, not all prices — 65,536 one-cent slots indexed absolutely from $0.00 only reach $655.35, and the arena's NFLX near $720 writes past the end of bid_ into ask_, the adjacent member. That is an intra-object overflow, so AddressSanitizer does not see it and a test suite that quotes near $100 stays green. Index against a base, bounds-check both ends, and re-base when the market walks out of the band.",
+  "code": r'''const double base = 99.00, tick = 0.01;        // index against a BASE tick
+std::array<uint32_t, 256> bid_qty{}; int best = -1;
+auto idx = [&](double px) { return int((px - base) / tick + 0.5); };
+auto add = [&](double px, uint32_t q) {
+  const int i = idx(px);
+  if (i < 0 || i >= 256) return false;         // the BAND check ASan cannot see
+  bid_qty[i] += q; if (i > best) best = i;     // O(1), one cache line
+  return true; };
+bool in  = add(100.00, 800);
+bool oob = add(720.00, 500);                   // $720 is off a $99.00-$101.55 band
+std::printf("%d %d %.2f %u\n", in, oob, base + best * tick, bid_qty[best]);
+// 1 0 100.00 800''',
+  "deck": "Deck U5 · slides 18–21"},
+ {"title": "FIFO per level, and your place in it",
+  "text": "Price-time priority means better price first, then earlier arrival, and within one price the arena's engine holds a strict FIFO keyed on a monotonic sequence number, so ties are impossible. Model each level as an intrusive doubly linked FIFO whose nodes come from the pool: the links live inside the order, so push_back on arrival and erase on cancel are O(1) with no allocation, and an open-addressing id → node index gives cancel its O(1) lookup. Your fill chance is set by the quantity ahead of you; the arena hands it to you as queue_ahead in on_ack / on_queue (zero means you are next), and walking the level to recompute it is O(k) — do it on an ack, not per tick. Repricing forfeits all of it: cancel and re-post puts you at the tail, so move a quote only when the edge is worth your place in line.",
+  "code": r'''struct Node { std::uint32_t qty; Node *prev = nullptr, *next = nullptr; };
+struct Level { Node *head = nullptr, *tail = nullptr; std::uint32_t total = 0;
+  void push_back(Node* o) { o->prev = tail; (tail ? tail->next : head) = o; tail = o; total += o->qty; }
+  void erase(Node* o) { (o->prev ? o->prev->next : head) = o->next;
+                        (o->next ? o->next->prev : tail) = o->prev; total -= o->qty; }
+  std::uint32_t ahead(const Node* me) const { std::uint32_t q = 0;
+    for (auto* o = head; o != me; o = o->next) q += o->qty; return q; } };
+int main() { Node a{300}, b{200}, me{100}; Level L;
+  L.push_back(&a); L.push_back(&b); L.push_back(&me);    // arrival order
+  std::printf("%u ", L.ahead(&me)); L.erase(&a);         // a cancels ahead of us
+  std::printf("%u %u\n", L.ahead(&me), L.total); }
+// 500 200 300''',
+  "deck": "Deck U5 · slides 22–23"},
+ {"title": "Complexity that matters: rings and O(1) statistics",
+  "text": "Big-O hides the constant, and on the small N of a hot book the constant — memory accesses — is the whole story: finding a value among 64 elements, a red-black tree's six pointer hops can lose to a prefetched linear scan. Amortized is not worst case either: push_back's occasional O(n) regrow is a tail event, and reserve() removes it. The signal on top of the book follows the same rule. Keep the recent tape in a fixed ring buffer — power-of-two capacity, index with & (N - 1), static_assert it, because the unsigned head - count + i only wraps correctly when N divides 2^64 — and fold each tick into a running mean, Welford's variance and an EMA in O(1). Welford matters on prices near 100 with tiny variance, where sum(x²) - n·mean² cancels catastrophically.",
+  "code": r'''struct Online {                                    // O(1) time, O(1) space
+  long n = 0; double mean = 0, m2 = 0, ema = 0, a = 0.2;
+  void update(double x) { ++n; double d = x - mean;
+    mean += d / n;                                 // running mean
+    m2   += d * (x - mean);                        // Welford's M2
+    ema   = (n == 1) ? x : a * x + (1 - a) * ema; }
+  double var() const { return n > 1 ? m2 / (n - 1) : 0.0; }
+};
+Online o; for (double x : {2., 4., 4., 4., 5., 5., 7., 9.}) o.update(x);
+std::printf("%ld %.2f %.4f %.4f\n", o.n, o.mean, o.var(), o.ema);
+// 8 5.00 4.5714 5.2910''',
+  "deck": "Deck U5 · slides 26–28"}
 ],
 "hft": {
- "text": "Why this matters in HFT",
+ "text": "Session 5 makes on_book cost the same every tick: pooled memory, a mirrored flat book, and signals updated in O(1) — the session Project Phase 2 rests on.",
  "paragraphs": [
-  "Inside on_book the set of types is closed. You ship two or three strategies and a handful of message types, not a plugin system, so every runtime question about a type the programmer already knew — a virtual call, a variant visit, a std::function — is a cost you chose to pay. Session 4 measured those rows; Session 5 moves the decision into the compiler, where it costs nothing per tick.",
-  "The benchmark understates the win. In dispatch_bench the body is one multiply, so CRTP saves about half a nanosecond per call. In a real on_book the win is what inlining unlocks: the compiler folds your constants, keeps the book in registers and drops checks it can prove dead — and none of that survives an indirect call. The HFT rule is short: if the type set is closed and known, template it; keep virtual for the genuinely open set at the client boundary.",
-  "Compile time is also where correctness goes. A static_assert on a struct size, a fee rate or a tick table turns an assumption into a build failure; a concept rejects the wrong type with one readable line; std::is_trivially_copyable_v<Msg> is the licence to memcpy a message into a ring or onto the wire, which is exactly what Sessions 7 and 8 do. The market never gets to find those bugs for you.",
-  "The outbound path is the practical target. The stock client builds every order as a JSON object and dumps it to a std::string — dozens of heap allocations per send. A variadic, if-constexpr encoder that folds over the fields and writes numbers with std::to_chars into a reused buffer does the same job with none (measured in the lab: about 56 ns and 0 allocations against about 1.3 µs and 41 allocations for the JSON library). Phase 1 is due the night of Session 5, so you submit what works and carry the encoder into Project Phase 2 as the outbound half of a no-allocation hot path; Session 4's variant router is the inbound half.",
-  "Templates come back immediately. Session 6's typed pool is ObjectPool<T, N> and its book is sized at compile time with static_assert on its layout; Session 7's SPSC ring is a Ring<T, N> with the power-of-two mask you wrote tonight. What you pay for them is code size and compile time, so instantiate for the types you actually ship."
+  "on_book runs on the client's receive thread for every snapshot, and everything in this session is about making that call cost the same every time. Start by finding the hidden new: every std::string you build, map node you insert or vector you grow inside on_book or on_ack is an allocation, and each one is usually fast and occasionally a lock, a page fault or a walk of a fragmented free list. That list is your Phase 2 target. This is also the midterm session (Monday Oct 26, remote): the exam covers Sessions 1–4, so tonight's material is not on it.",
+  "The properties you buy with a pool are the mirror image of malloc's — no lock because it is per-thread, no syscall because the memory was reserved before the session opened, O(1) because allocation is a free-list pop, bounded because you sized it for the worst tick — and the lab's bench-alloc shows the result as a distribution: the heap has a tail that appears in every run; the pool's is flat unless a timer interrupt lands in the batch. Two operational details bite every year. An ObjectPool<Order, 4096> is on the order of 128 KB, so it is a member or a static, never a local on a 512 KB thread stack. And every alloc needs its free: forget one and alloc() returns null a few thousand ticks in and the bot goes quiet without crashing — log exhaustion loudly.",
+  "Then mirror the book locally so on_book can go decode → update → decide in cache. Turn the symbol into a small integer once, with an open-addressing SymMap filled at startup, and from there every access is into fixed per-symbol arrays: the touch as integer ticks, your own resting orders from a pool, their queue_ahead from on_ack and on_queue. The engine is a price-time CLOB keyed on a monotonic sequence, so the local model can be exact rather than approximate.",
+  "The flat book's failure mode deserves its own sentence in your write-up. A band indexed absolutely from $0.00 corrupts the other side of your own book for any name above $655.35 — green CI, clean sanitizer, and a book showing size nobody quoted, so your bot crosses a spread that does not exist. Index against a base, bounds-check both ends on the write path, and say how you re-base when the market walks out of the band; do not just make the array bigger, because megabytes of empty slots throw away the small working set you built this for.",
+  "Signals ride on the same discipline: fold microprice into an Online state per symbol, keep the recent tape in a Ring, and never loop a window on the hot path — an O(k) recompute costs nothing most of the time and blows out exactly when volatility raises the message rate. Measure everything the way HW 5 grades it: pool against new/delete and the flat book against std::map, warm-up in, machine stated, and read the tail rather than the median, because that is where a rehash or a node allocation lands."
  ],
  "example": {
   "title": "In the arena",
-  "code": """// hft/cpp_client/src/arena_client.cpp — the send path the encoder replaces
-void ArenaClient::place_limit(const std::string& symbol, const std::string& side,
-                              int quantity, double price) {
-    // Mirrors shared.messages.PlaceOrder (order_type="limit"). stop_price is
-    // optional in the schema, so we omit it for wire compatibility.
-    json o = {
-        {"type",       "place_order"},
-        {"team_id",    cfg_.team_id},
-        {"symbol",     symbol},
-        {"side",       side},
-        {"order_type", "limit"},
-        {"price",      price},
-        {"quantity",   quantity},
-    };
-    send_raw(o.dump());
-}""",
-  "text": "hft/cpp_client/src/arena_client.cpp — every limit order your bot sends is built here as a JSON object and dumped to a fresh std::string. Step 8 of the Session 5 lab writes the same bytes with a variadic encoder, if constexpr per field type and std::to_chars into a reused buffer, and a counting operator new prints allocations: 0; wiring it into this function is work you carry into Project Phase 2."
+  "code": r'''// include/order_book.hpp
+// HW 5, part 2 (Session 5) — a fast order book (flat, price-indexed) + a fast symbol->id map.
+// side 'B'=bid, 'S'=ask.  SymMap::get returns (uint64_t)-1 if absent.
+//
+// Range warning (see labs/session05.md, step B2): a flat array of N one-cent slots
+// is a BAND, not "all prices". 1<<16 slots indexed absolutely from $0.00 covers
+// only $0.00-$655.35, and the arena lists NFLX near $720 and META near $580 —
+// an absolute index walks off the end and, because the two side arrays are
+// adjacent members, silently corrupts the OTHER side of your own book.
+struct Book {
+    void add(uint64_t id, char side, double px, uint32_t qty);
+    void cancel(uint64_t id);
+    double best_bid() const { return 0.0;   /* TODO(student): O(1) */ }
+    double best_ask() const { return 0.0;   /* TODO(student): O(1) */ }
+};''',
+  "text": "include/order_book.hpp in your starter repo — the HW 5 order-book stub, band warning included (bodies of add/cancel and the SymMap half elided here). The graded contract is four functions on Book plus put/get on SymMap; include/pool.hpp is its twin for part 1, and starters/session05/bench_book.cpp times your book against std::map and std::unordered_map."
  }
 },
 "interview": [
- {"q": "Why must a template's definition usually live in a header?",
-  "a": "Because a template is not code until it is instantiated, and the compiler can only instantiate it where it can see the definition. With the body in a separate .cpp, each translation unit that uses it emits a call to a function nobody generated, and you get a link error. The alternatives are to keep the definition in the header (the normal choice) or to explicitly instantiate the specific types you need in one .cpp — which is also a way to contain code bloat.",
-  "level": "warm-up", "skill": "cpp.templates"},
- {"q": "What is the difference between constexpr and consteval, and what does static_assert add?",
-  "a": "constexpr says a function or variable can be evaluated during compilation when its inputs are constant expressions, and it remains an ordinary function when they are not — so a constexpr function called with a runtime argument gives you no compile-time guarantee at all. consteval makes it an immediate function that must be evaluated at compile time; calling it with a runtime value is a hard error, so no runtime path exists. static_assert is the third leg: it checks a compile-time predicate and turns a violated assumption — a tick grid, a struct size, a fee rate — into a failed build.",
-  "level": "warm-up", "skill": "cpp.constexpr"},
- {"q": "What is the difference between if and if constexpr, and why can't a plain if do the job inside a template?",
-  "a": "A plain if is a run-time test: both branches are compiled for every instantiation and the CPU evaluates the condition. if constexpr is evaluated during compilation and the untaken branch is discarded — never instantiated — so it only has to parse, not to be valid for that T. That is why one template can memcpy an integer, scale a double into ticks and reject a pointer: with a plain if, v * 100.0 would have to compile for the pointer too. It costs nothing at run time, and a final else with static_assert turns an unsupported type into a build error.",
-  "level": "core", "skill": "cpp.type-traits-constraints"},
- {"q": "What does SFINAE mean, and what do C++20 concepts improve on it?",
-  "a": "Substitution Failure Is Not An Error: when substituting template arguments into a signature produces something ill-formed, that candidate is silently removed from overload resolution rather than failing the build — so enable_if_t<is_arithmetic_v<T>, int> = 0 makes a function disappear for non-arithmetic types. It works, but the intent is buried in the signature and a misuse produces a wall of notes. A concept names the requirement — template <Arithmetic T> — or states it as a requires-expression ('s.signal(m) must compile and convert to double'), and the error says exactly which requirement failed at the call site. It also checks shape, not inheritance: any type with the right members qualifies, with no base class and no vtable.",
-  "level": "core", "skill": "cpp.type-traits-constraints"},
- {"q": "Explain the overload{} idiom line by line.",
-  "a": "template <class... Fs> struct overload : Fs... { using Fs::operator()...; }; — the struct inherits from every lambda type in the pack (variadic inheritance), and the using-declaration pack expansion brings every lambda's call operator into one overload set, so overload resolution picks the lambda whose parameter matches. A deduction guide (implicit for aggregates in C++20) lets you write overload{...} without naming lambda types. Passed to std::visit over a variant, it is a visitor built inline, and because std::visit requires the visitor to handle every alternative, removing a lambda is a compile error — exhaustiveness checked by the build.",
-  "level": "core", "skill": "cpp.variadic-templates"},
- {"q": "Compare CRTP with virtual dispatch. When would you still choose virtual?",
-  "a": "CRTP binds the call at compile time — the base static_casts to its derived type — so it inlines completely, adds no vptr and no indirect branch; in the lab's dispatch_bench the CRTP row matches the direct-call row, not the virtual row. A virtual call is a load of the vptr, a load of the slot and an indirect branch, but the real bill is the inlining barrier. The catch with CRTP is that the concrete type must be known at compile time and the instantiations share no base, so I still use virtual where the type set is genuinely open or flexibility is worth more than nanoseconds — configuration, logging, the client boundary — never in the tick-to-trade body.",
-  "level": "core", "skill": "cpp.crtp-policies"},
- {"q": "How would you prove that a \"zero-overhead\" template abstraction really is zero overhead compared with the virtual version?",
-  "a": "Two ways, both empirical. Read the generated code: build both at -O2 and compare the disassembly of the hot function — the virtual version shows the vptr load, the slot load and an indirect branch (br x2 on arm64), the CRTP version shows the inlined body and nothing else. Then confirm behaviourally on a fixed input: the same dispatch_bench or the same recorded tape, comparing p50 and p99.9, because an inlining failure shows up as a tail change long before it shows up in a mean. Claiming zero overhead from the language rules alone is how people ship an accidental indirect call.",
-  "level": "senior", "skill": "perf.virtual-cost"},
- {"q": "Templates are \"zero-cost\". When can they make a latency-critical binary slower?",
-  "a": "When instantiations multiply. Each distinct set of arguments is separate machine code, so templating a fat function over every integer width, every container and every policy combination grows the binary and can push the hot path out of the instruction cache — the program becomes front-end bound, which shows up in counters as i-cache and iTLB misses rather than in the source. Deep inlining can have the same effect. The remedies are to instantiate only the types you ship, keep the templated layer thin over a non-template core, explicitly instantiate in one translation unit, and measure the tail rather than assume the abstraction is free.",
-  "level": "senior", "skill": "cpp.templates"}
+ {"q": "Why is the general-purpose allocator a problem on a low-latency path?",
+  "a": "Because its cost is unpredictable rather than merely large. It may take a lock on a shared structure, search or split blocks, coalesce on free, or fall through to brk/mmap and a first-touch page fault in the kernel. The median call is around ten nanoseconds, which is why the mean looks fine, but the occasional slow call — hundreds of nanoseconds to microseconds — lands on a busy tick and becomes your p99.9, and you do not control when it happens.",
+  "level": "warm-up", "skill": "cpp.raw-allocation"},
+ {"q": "What does “amortized O(1)” mean for vector::push_back, and why might that not be good enough?",
+  "a": "Most pushes are a single store; when capacity runs out the vector allocates a larger buffer and moves every element, which is O(n), and averaging that over the whole sequence gives constant cost per push. On a latency path you are graded on the worst operation, not the average: that one reallocation is an allocation plus an O(n) copy landing on an arbitrary tick. reserve() the capacity up front and the spikes disappear.",
+  "level": "warm-up", "skill": "perf.complexity-in-cache-terms"},
+ {"q": "Sketch a fixed-size object pool and state the complexity of alloc and free.",
+  "a": "One contiguous slab of N slots, each big enough and aligned for T and at least one pointer wide, plus a head pointer to a singly linked free list threaded through the unused slots — so the list costs no extra memory. alloc pops the head, free pushes the slot back; both O(1), no search, no lock, no syscall, and LIFO reuse keeps slots cache-warm. Exhaustion returns null, which the caller must handle and should log loudly. Practically the pool is a member or a static, because a few thousand slots is well over 100 KB.",
+  "level": "core", "skill": "perf.object-pool"},
+ {"q": "What does placement new do, and what obligation does it create?",
+  "a": "new (ptr) T{args...} constructs a T in storage you already own: it runs the constructor and allocates nothing. The obligation is symmetry — no delete will ever be called for it, so you must call p->~T() explicitly before returning the slot to the pool, and calling delete instead would free memory the heap never handed out. You are also responsible for the storage being correctly sized and aligned for T, which is why slots are declared alignas(T). The explicit destructor ends the object's life; it frees nothing.",
+  "level": "core", "skill": "cpp.placement-new"},
+ {"q": "Why size an open-addressing hash table to a power of two, and what is the worst thing std::unordered_map can do to you on a hot path?",
+  "a": "A power-of-two capacity makes the wrap hash & (size - 1) instead of a modulo — one AND instead of an integer division — and the probe advance i = (i + 1) & mask. Keep the load factor under roughly 0.7 and size it once, because probe runs lengthen sharply past that. The worst thing unordered_map does is rehash: an unbounded O(n) reallocation at a moment you did not choose. The second is chaining — each bucket is a list of separately allocated nodes, so a collision is a pointer chase and a likely miss — and keyed on std::string, every lookup builds and hashes a string first.",
+  "level": "core", "skill": "perf.open-addressing-hash"},
+ {"q": "Why can a flat price-indexed array beat std::map for an order book even though the map is O(log n)?",
+  "a": "Because prices sit on a tick grid, so tick - base_tick is an exact integer index and the lookup is arithmetic instead of a search. The map's pointer hops are each a potential cache miss at around 100 ns; the array is one indexed load into a small, dense working set. Add and cancel are O(1), the touch is a cached slot read with zero traversal, and matching walks adjacent slots sequentially. The only scan is a cancel that empties the touch — rare, and cache-friendly.",
+  "level": "core", "skill": "trading.flat-order-book"},
+ {"q": "How do you track your own queue position, and why does it matter?",
+  "a": "At each price the venue holds a FIFO keyed on a monotonic sequence number, so your position is the remaining quantity of every order that arrived before yours. The arena hands it to you: on_ack carries queue_ahead and level_qty when your order rests, and on_queue updates them as fills and cancels ahead of you land; queue_ahead == 0 means you are next. It matters because fill probability is a function of the size in front of you, and because a reprice resets it — cancel and re-post puts you at the back — so a quote adjustment is a real, measurable cost.",
+  "level": "core", "skill": "trading.queue-position"},
+ {"q": "Your flat book is indexed absolutely from $0.00 with 65,536 one-cent slots. A name lists at $720, nothing crashes, sanitizers are clean and CI is green. What is happening, and how do you find it?",
+  "a": "The array is a $655.35-wide band, so $720 indexes past the end. Because the bid and ask arrays are adjacent members of one object, the write lands on your own other side — a bid at $719.98 is tick 71,998, 6,462 slots past bid_'s end, so it adds size to the ask side at $64.62. The book then shows resting size no venue sent, and the bot crosses a spread that does not exist. ASan cannot see it because it instruments boundaries between allocations, not between two members of one object, and tests that quote near $100 never reach the edge. Fix: index against a base tick set from the first price seen, bounds-check both ends on every write, and re-base or reject-and-log out-of-band prices. To catch it, diff against a slow map-based shadow book on a replayed tape and stop at the first divergence.",
+  "level": "senior", "skill": "trading.flat-order-book"},
+ {"q": "You put a pmr::vector on a monotonic_buffer_resource inside on_book and call release() at the end of the tick. Where are the traps?",
+  "a": "Lifetime order first: release() reclaims the whole slab, so every container that borrowed from it must be destroyed before the reset — otherwise its destructor touches memory the resource has already handed back and a later tick overwrites live data. The idiom is to scope the scratch container in an inner block and release after it closes. Second, overflow: with the default upstream, a working set bigger than the buffer silently falls back to the heap, so you are allocating on the hot path again with nothing in the source to show it; pass null_memory_resource() as upstream so overflow throws instead.",
+  "level": "senior", "skill": "perf.arena-allocator"}
 ]
 }

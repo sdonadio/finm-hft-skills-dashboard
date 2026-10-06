@@ -17,7 +17,7 @@ _LAB_CANDIDATES = [os.environ.get("UC_STARTER_LABS", ""),
     os.path.expanduser("~/PycharmProjects/hft-cpp-starter-uchicago/labs")]
 LABS_DIR = next((d for d in _LAB_CANDIDATES if d and os.path.isdir(d)), None)
 ARENA_BAD = re.compile(r"algoarenafin|duckdns|\b\d{1,3}(?:\.\d{1,3}){3}\b|wss?://|feed\.", re.I)
-DECK_DIR = "/Users/sdonadio/PycharmProjects/AlgoArena/course/hft-uchicago"
+DECK_DIR = os.environ.get("UC_DECK_DIR", "/Users/sdonadio/PycharmProjects/AlgoArena/course/hft-uchicago")
 
 DECK_LEN = {}
 try:

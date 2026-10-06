@@ -1,156 +1,159 @@
 # -*- coding: utf-8 -*-
-"""Session 7 focus — Concurrency: from atomics to lock-free (deck U7, labs/session07.md).
+"""Session 7 focus — The wire & the machine (deck U7, labs/session07.md).
 
-Sources: u7.pptx (slides cited from its real numbering), session7_talking_points.md,
-labs/session07.md (Parts A-E). Ring convention as in the deck, the lab and the grader:
-the producer writes tail_, the consumer writes head_.
+Sources: u8.pptx (slides cited from its real numbering; 26-30 are the self-study
+appendix), session7_talking_points.md, labs/session07.md (steps 1-5).
 Every `code` snippet is compiled and run by tools/validate_focus.py.
 """
 
-FILE_SCOPE = {"v_s7_c5": 9, "v_s7_c7": 10}   # "v_s7_cK": leading lines at file scope
+FILE_SCOPE = {"v_s7_c3": 6, "v_s7_c4": 7}   # "v_s7_cK": leading lines at file scope
 
 S = {
 "n": 7,
-"focus": "Concurrency: atomics to lock-free",
-"tagline": "Hand every tick from the socket thread to the strategy with two atomic operations and no lock — and prove it with a happens-before argument and a clean ThreadSanitizer run.",
+"focus": "The wire & the machine",
+"tagline": "Parse a wire message in tens of nanoseconds without allocating, never block on a socket, and know which machine-level knobs buy the last microseconds.",
 "concepts": [
- {"title": "Threads share memory, and a data race is undefined behaviour",
-  "text": "A std::thread is an independent instruction stream in the same address space: stacks are private, the heap and globals are shared, and the OS interleaves threads however it likes. When two threads touch the same location, at least one writes, and nothing orders them, that is a data race and the standard promises nothing at all. ++counter is load, add, store: at -O0 two threads of a million increments lose updates differently every run, and at -O2 the same code prints exactly 2,000,000 because the optimiser, assuming no race, folded each loop into one add. The right answer from a racy program is the scariest outcome. std::atomic fixes the count, and volatile does not: it stops the compiler caching a value and creates no ordering at all.",
-  "code": """long racy = 0; std::atomic<long> safe{0};
-auto work = [&] { for (int i = 0; i < 100000; ++i) {
-    ++racy;                                                    // DATA RACE -> UB
-    safe.fetch_add(1, std::memory_order_relaxed); } };         // atomic, unordered
-std::thread t1(work), t2(work); t1.join(); t2.join();
-std::cout << safe.load() << ' ' << (racy <= 200000) << ' '
-          << safe.is_lock_free() << '\\n';
-// 200000 1 1     -- safe is exact; racy is not even well-defined""",
-  "deck": "Deck U7 · slides 5–6, 9"},
- {"title": "Happens-before, and the acquire/release handoff",
-  "text": "Correctness is not about time, it is about the happens-before relation: if A happens-before B, B sees A's writes, and otherwise there is no guarantee. Program order gives sequenced-before inside a thread; a release store synchronizes-with an acquire load that reads its value; thread start, join and a mutex unlock/lock pair make edges too; and the relation is transitive. Nothing else makes an edge — not volatile, not sleep(). The pattern behind every lock-free handoff is four numbered steps: write the payload, release-store a flag, acquire-load the flag, read the payload. (2) synchronizes-with (3), so (1) happens-before (4), with no lock anywhere. Make both orders relaxed and ThreadSanitizer reports the race.",
-  "code": """int payload = 0; std::atomic<bool> ready{false};
-std::thread prod([&] { payload = 42;                            // (1) write the data
-  ready.store(true, std::memory_order_release); });             // (2) release: publishes (1)
-std::thread cons([&] {
-  while (!ready.load(std::memory_order_acquire)) { }            // (3) acquire
-  std::printf("%d\\n", payload); });                             // (4) guaranteed to see (1)
-prod.join(); cons.join();
-// 42""",
-  "deck": "Deck U7 · slides 7, 12"},
- {"title": "memory_order: pay only for what you can prove",
-  "text": "Every atomic operation takes an ordering. relaxed is atomic but orders nothing else — right for a free-running counter, never for handing data over. acquire/release is the workhorse pair. seq_cst, the default, adds one global order over all seq_cst operations and costs the strongest fences. The store-buffer litmus test shows why the choice is not academic: each thread stores its flag then loads the other's, and with relaxed the Apple M4 saw both loads return 0 in 199,793 of 200,000 trials, because a core's store waits in its buffer while its later load runs ahead. acquire/release does not forbid that outcome — only seq_cst does. Not seeing a reordering on one CPU proves nothing; reason from the model.",
-  "code": """int both = 0;
-for (int t = 0; t < 2000; ++t) {
-  std::atomic<int> x{0}, y{0}; int r1 = -1, r2 = -1;
-  std::thread a([&] { x.store(1); r1 = y.load(); });   // seq_cst: the default
-  std::thread b([&] { y.store(1); r2 = x.load(); });
-  a.join(); b.join(); both += (r1 == 0 && r2 == 0);
+ {"title": "FIX: tag=value, the lingua franca of order entry",
+  "text": "FIX is text: an integer tag, '=', the value, then the SOH byte (0x01), with a session layer of logon, heartbeats, sequence numbers and resends on top. BeginString (8=) and BodyLength (9=) come first on purpose, so a reader knows exactly where the message ends, and CheckSum (10=) is the byte sum of everything before it, mod 256. It is ubiquitous for orders and rare for fast market data, because reading it means scanning every byte and converting ASCII digits to numbers. HW 7 part 1 is that loop done properly: one forward pass over tags 11/55/54/38/44, no allocation, the ClOrdID kept as a view into the buffer, and false on malformed input — and no assumption about the order of body tags.",
+  "code": """const char* msg = "35=D\\00155=NVDA\\00154=1\\00138=200\\00144=182.50\\001";
+for (const char* p = msg; *p; ) {
+  int tag = 0;
+  while (*p != '=') tag = tag * 10 + (*p++ - '0');    // digit math, per byte
+  const char* v = ++p;                                // skip '='
+  while (*p && *p != '\\001') ++p;                     // scan to the SOH
+  if (tag == 55 || tag == 44) std::printf("%d=%.*s ", tag, int(p - v), v);
+  if (*p) ++p;                                        // skip the SOH
 }
-std::printf("both zero under seq_cst: %d of 2000\\n", both);
-// both zero under seq_cst: 0 of 2000   -- relaxed on an M4: 199,793 of 200,000""",
-  "deck": "Deck U7 · slides 10–11"},
- {"title": "A lock on the hot path is a tail bomb; CAS is the lock-free atom",
-  "text": "Locks are the easy, correct way to get mutual exclusion — lock_guard or scoped_lock, never lock()/unlock() by hand — and a mutex barely dents the median: in the deck's four-thread counter it even beats an atomic at p50 (4.6 ns against 37). It detonates p99.9, 3–13x worse over five runs, because a contended loser sleeps on a futex and the scheduler decides when it wakes; a descheduled holder is a priority inversion with no bound. Every general lock-free structure sits instead on compare-and-swap: swap only if the value still equals what you expected, and on failure expected is refreshed so you recompute and retry — nobody is parked by the kernel. CAS compares bits, not history, so a recycled node can fool it (ABA), and the fixes (version tags, hazard pointers, epochs) are all memory-reclamation schemes.",
-  "code": """std::atomic<int> v{7}; int tries = 0;
-int expected = v.load(), desired;
-do { desired = expected * 2; ++tries; }        // recompute INSIDE the loop
-while (!v.compare_exchange_weak(expected, desired));   // swap only if unchanged
-int stale = 99;                                // a CAS with a stale expected FAILS
-bool ok = v.compare_exchange_strong(stale, 0); // ...and refreshes `stale`
-std::cout << v.load() << ' ' << tries << ' ' << ok << ' ' << stale << '\\n';
-// 14 1 0 14""",
-  "deck": "Deck U7 · slides 14–17"},
- {"title": "The SPSC ring: one writer per index, two lines that make it correct",
-  "text": "Single producer, single consumer: the producer is the only writer of tail_ and the consumer the only writer of head_, so no CAS is needed at all — push has no loop and no retry, which makes it wait-free, and nothing is recycled, so there is no ABA. The counters are monotonic and the capacity a power of two, so the slot is pos & mask and tail - head stays right across unsigned wrap. The producer loads its own tail_ relaxed, acquire-loads head_ to see the slots the consumer freed, writes the payload first, then release-stores tail_ + 1. Those last two lines are the whole correctness argument. And each index owns a 64-byte line, because the two cores write them on every operation: sharing a line is correct but silently slow, and it is 2 of the 10 HW 7 points.",
-  "code": """struct Ring { explicit Ring(std::size_t cap) : mask_(cap - 1), buf_(cap) {}
-  bool push(std::uint64_t v) {                          // PRODUCER thread only
-    auto t = tail_.load(std::memory_order_relaxed);     // mine: nobody else writes it
-    if (t - head_.load(std::memory_order_acquire) == buf_.size()) return false;
-    buf_[t & mask_] = v;                                // (1) payload first
-    tail_.store(t + 1, std::memory_order_release); return true; }  // (2) publish
-  alignas(64) std::atomic<std::size_t> tail_{0}, head_{0};
-  std::size_t mask_; std::vector<std::uint64_t> buf_;
-};
-Ring r(4); int n = 0; for (int i = 0; i < 6; ++i) n += r.push(i);
-std::printf("%d accepted, 2 refused: full\\n", n);  // pop() is yours in the lab
-// 4 accepted, 2 refused: full""",
-  "deck": "Deck U7 · slides 19–20"},
- {"title": "Bounded is a feature: back-pressure",
-  "text": "When the ring is full, push returns false — and that is not an error path, it is the one place in the design where you choose what to sacrifice: drop the newest, drop the oldest, or coalesce. For book snapshots, coalesce, since only the latest touch per symbol matters. Never spin on a full ring in the socket thread: you stop reading the wire, which is a lock's worst property back again. Unbounded queues are a trap that turns a slow consumer into a memory-and-latency blowout, and head-of-line blocking means one fat message delays every tick behind it, so keep items small, fixed-size and POD. Count the rejected pushes in a relaxed atomic: that counter is your storm detector for the Phase 3 report.",
-  "code": """std::array<int, 4> q{}; std::size_t head = 0, tail = 0; int latest = 0;
-std::atomic<std::uint64_t> dropped{0};
-auto push = [&](int v) {                            // bounded: false when full
-  if (tail - head == q.size()) { latest = v;        // coalesce: keep the newest
-    dropped.fetch_add(1, std::memory_order_relaxed); return false; }
-  q[tail++ & 3] = v; return true; };
-int accepted = 0;
-for (int tick = 1; tick <= 7; ++tick) accepted += push(tick);
-std::printf("%d %d %d dropped=%llu\\n", accepted, latest, q[head & 3],
-            (unsigned long long)dropped.load());
-// 4 7 1 dropped=3     -- 4 queued, 3 rejected and counted, tick 7 kept as the latest""",
-  "deck": "Deck U7 · slides 21–22"},
- {"title": "Across processes: the shared-memory ring, and C++20 coordination",
-  "text": "The same ring works between two processes if it lives in a mapping both see: shm_open plus ftruncate plus mmap(MAP_SHARED) gives two page tables over one set of physical pages, and lock-free atomics obey the same memory model across them — one release store, one acquire load, no kernel in the fast path. That is Project Phase 4's feed/strategy split: a crash in the feed cannot take the strategy down, and each process pins its own core. Three rules change: no pointers (an address means something in one process only — store indices), no std::string or vector inside (they own heap memory in one process), and only always-lock-free atomics, because a hidden lock lives in one address space. Off the hot path, C++20 ships the coordination you used to hand-roll: a std::latch start gate, atomic::wait/notify to sleep without a condition variable, and std::jthread with a stop_token for clean shutdown.",
-  "code": """struct ShmRing {                                      // POD: no pointers, no heap
-  static constexpr std::uint32_t CAPACITY = 1024;     // power of two
-  static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
-  void init() { head.store(0); tail.store(0); }       // creator, once
-  bool push(std::uint64_t v) { std::uint32_t t = tail.load(std::memory_order_relaxed);
-    if (t - head.load(std::memory_order_acquire) == CAPACITY) return false;
-    buf[t & (CAPACITY - 1)] = v; tail.store(t + 1, std::memory_order_release); return true; }
-  alignas(64) std::atomic<std::uint32_t> head, tail;  // consumer | producer writes
-  alignas(64) std::uint64_t buf[CAPACITY];            // inline data
-};
-static ShmRing r; r.init(); std::printf("%zu %d\\n", sizeof r, int(r.push(42)));
-// 8320 1""",
-  "deck": "Deck U7 · slides 24–26"}
+std::puts("");
+// 55=NVDA 44=182.50""",
+  "deck": "Deck U7 · slides 5, 29"},
+ {"title": "Binary feeds: decode is a load and a byte swap",
+  "text": "Fast venues abandon text. ITCH/OUCH-style messages are fixed-width — an 18-byte add-order is type, id, side, quantity and price at known offsets — prices are scaled integers (1825000 means 182.50), and the wire is big-endian. So decoding is a bounds-and-type check, then a memcpy and a byte swap per field: no delimiter scan, no atoi, no allocation. Use memcpy, not reinterpret_cast of a packed struct onto the buffer: the cast is alignment and strict-aliasing undefined behaviour, and an 8-byte memcpy compiles to one load anyway. When you want a schema instead of hand-rolled offsets, SBE is this same layout with codegen; FlatBuffers reads fields in place; Protobuf must decode into objects first.",
+  "code": """inline std::uint32_t be32(const std::uint8_t* p) {
+  std::uint32_t v; std::memcpy(&v, p, 4); return __builtin_bswap32(v); }
+int main() {       // wire: [type 1][id 8][side 1][qty 4][px 4] = 18 bytes, big-endian
+  std::uint8_t w[18]{}; w[0] = 'A'; w[9] = 'B'; std::size_t n = sizeof w;
+  std::uint32_t q = __builtin_bswap32(100), px = __builtin_bswap32(1825000);
+  std::memcpy(w + 10, &q, 4); std::memcpy(w + 14, &px, 4);   // as the venue sent it
+  if (n < 18 || w[0] != 'A') return 1;                       // bounds + type FIRST
+  std::printf("%c qty=%u px=%.2f\\n", char(w[9]), be32(w + 10), be32(w + 14) / 10000.0);
+}
+// B qty=100 px=182.50     -- no delimiter scan, no atoi, no allocation""",
+  "deck": "Deck U7 · slides 6, 27"},
+ {"title": "TCP for orders, UDP multicast for data — and the sequence number",
+  "text": "Orders and market data make opposite transport choices. Order entry uses TCP because an order must never be lost — and TCP's failure mode is delay: one lost segment stalls every byte behind it (head-of-line blocking), and Nagle coalesces small writes unless you set TCP_NODELAY. Market data is UDP multicast: the venue sends each packet once and the switches fan it out, whole datagrams or nothing, and UDP's failure mode is loss, which shows up as a sequence gap. Venues publish identical A/B feeds on separate paths; you take whichever copy lands first. Track the next expected sequence number: lower is a duplicate (the slower A/B copy), higher is a gap, and until snapshot-plus-increment recovery completes the book is stale — stop quoting that symbol.",
+  "code": """struct SeqTracker { enum Verdict { APPLY, DUP, GAP };
+  std::uint64_t next = 1; bool stale = false;
+  Verdict on_msg(std::uint64_t seq) {
+    if (seq < next) return DUP;                      // the slower A/B copy
+    if (seq > next) { stale = true; return GAP; }    // loss: stop quoting
+    ++next; return APPLY; } };
+SeqTracker t; const char* v[] = {"APPLY", "DUP", "GAP"};
+for (std::uint64_t s : {1, 2, 2, 3, 5}) std::printf("%s ", v[t.on_msg(s)]);
+std::printf("| next=%llu stale=%d\\n", (unsigned long long)t.next, int(t.stale));
+// APPLY APPLY DUP APPLY GAP | next=4 stale=1""",
+  "deck": "Deck U7 · slides 7–8"},
+ {"title": "Framing inside a non-blocking read loop",
+  "text": "A TCP socket delivers bytes, not messages: one recv can return half a message or three, and assuming otherwise is the most common networking bug in student code. Length-prefix framing reads the header, waits for the whole body, dispatches a view (no copy), and returns how much it consumed so the caller keeps the partial tail — and it validates the length against a maximum before trusting it, because a corrupt length is a buffer overrun. The framer runs inside a readiness loop: the fd is O_NONBLOCK, poll/epoll/kqueue says it is readable, and the handler drains into one buffer allocated once until recv returns EAGAIN, which means “drained”, not an error. Edge-triggered mode fires once, so stopping early strands the rest of the bytes with no new wake-up.",
+  "code": """using Handler = void (*)(const std::uint8_t*, std::size_t);
+std::size_t drain_frames(const std::uint8_t* buf, std::size_t len, Handler on_msg) {
+  std::size_t off = 0; while (len - off >= 2) {     // [u16 big-endian len][payload]
+    std::size_t n = std::size_t(buf[off]) << 8 | buf[off + 1];
+    if (len - off - 2 < n) break;                   // partial: wait for more
+    on_msg(buf + off + 2, n); off += 2 + n; }       // a view, no copy
+  return off; }                                     // caller keeps [off, len)
+const std::uint8_t in[] = {0,3,'a','b','c', 0,4,'d','e'};   // one recv: 1.5 frames
+auto used = drain_frames(in, sizeof in, [](const std::uint8_t* p, std::size_t n) {
+  std::printf("%.*s ", int(n), (const char*)p); });
+std::printf("| used=%zu leftover=%zu\\n", used, sizeof in - used);
+// abc | used=5 leftover=4     -- the partial second frame waits for the next read""",
+  "deck": "Deck U7 · slides 9, 11–12"},
+ {"title": "Read three fields, not thirty — and a send path with no snprintf",
+  "text": "A general JSON parser reads every field, builds a heap tree and copies strings; the hot path needs three numbers. The arena's book_snapshot carries bids and asks as arrays of [price, qty] with the touch at index 0, plus mid_price — there is no bid or ask key — so the targeted extract finds \"bids\":[[ and strtods what follows, over a string_view of the socket buffer. It assumes the venue's compact, well-formed JSON, so validate the shape once at connect. The send side is the mirror: you only ever emit a few shapes, so write them straight into a reused buffer — no snprintf parsing its format string on every call, no std::string. The number-to-text step is HW 7 part 2 (u64toa, correct on 0 and UINT64_MAX, faster than std::to_string). And do not batch the hot path: every message held to batch is latency you added.",
+  "code": """std::string_view f = R"({"type":"book_snapshot","symbol":"AAPL",)"
+  R"("bids":[[309.90,4.0],[309.80,7.0]],"asks":[[310.30,9.0]],"mid_price":310.10})";
+auto num_after = [f](std::string_view key) {          // no DOM, no allocation
+  std::size_t k = f.find(key);
+  if (k == f.npos) return 0.0;                        // absent or empty side
+  return std::strtod(f.data() + k + key.size(), nullptr); };   // parse in place
+std::printf("%.2f %.2f %.2f\\n", num_after("\\"bids\\":[["),
+            num_after("\\"asks\\":[["), num_after("\\"mid_price\\":"));
+// 309.90 310.30 310.10     -- the touch on each side and the mid; the rest skipped""",
+  "deck": "Deck U7 · slides 13–15"},
+ {"title": "The memory wall, SIMD and prefetch: let the compiler go first",
+  "text": "On the hot path you are memory-bound: an L1 hit is about four cycles, a DRAM miss 200 or more, memory moves in 64-byte lines, and a TLB miss walks the page table. Linear access lets the hardware prefetcher run ahead; pointer chasing defeats it. An AVX2 register holds eight floats, and the right order is: build -O3 -march=native, read the vectorization report (clang -Rpass-missed=loop-vectorize, GCC -fopt-info-vec), and hand-write intrinsics only when it refuses. The lab's punchline: -O3 makes the kernel 6x faster and the report still says “loop not vectorized”, because an in-order float sum cannot be split across lanes without changing the answer — -ffast-math vectorizes it and moves the checksum. __builtin_prefetch is a hint: no fault, no stall, a distance you tune by measurement.",
+  "code": """std::vector<float> x(1 << 16);
+for (std::size_t i = 0; i < x.size(); ++i) x[i] = 1.0f / float(i + 1);
+float in_order = 0;                                   // what -O3 must preserve
+for (float v : x) in_order += v;
+float lane[8] = {};                                   // what 8 SIMD lanes would compute
+for (std::size_t i = 0; i < x.size(); ++i) lane[i % 8] += x[i];
+float lanes = 0; for (float l : lane) lanes += l;
+std::printf("%s\\n", in_order == lanes ? "same" : "different: FP + is not associative");
+// different: FP + is not associative""",
+  "deck": "Deck U7 · slides 18–19"},
+ {"title": "Get the kernel out of the way, own the core, and stamp the wire",
+  "text": "A syscall is a mode switch — typically hundreds of nanoseconds, more under load — so the cheapest one on the hot path is the one you never make: pre-allocate, reuse buffers, never log from on_book. Sleeping in epoll_wait adds a wake-up and jitter, so HFT busy-polls a dedicated core. Kernel bypass skips the generic stack: DPDK owns the NIC from user space, Onload/ef_vi accelerates ordinary sockets via LD_PRELOAD, AF_XDP is an in-kernel fast path, and io_uring batches syscalls without bypassing anything. Then take control of the machine: pin the hot thread to an isolated core (pinning buys variance, not speed — macOS has no affinity API, so skip it and say so), keep memory on the NIC's NUMA node, and pre-fault and mlock hot memory so no first-touch fault lands mid-race. Cross-box latency needs PTP-synchronised clocks and NIC hardware timestamps; past that, FPGAs.",
+  "code": """constexpr std::size_t kBytes = 1 << 20, kPage = 4096;   // at startup, not in on_book
+char* hot = static_cast<char*>(std::malloc(kBytes));
+std::size_t touched = 0;
+for (std::size_t off = 0; off < kBytes; off += kPage) {  // first touch = page fault
+  hot[off] = 0; ++touched; }                             // ...paid now, before the open
+std::printf("pre-faulted %zu x 4 KiB before SESSION_OPEN\\n", touched);
+std::free(hot);
+// pre-faulted 256 x 4 KiB before SESSION_OPEN""",
+  "deck": "Deck U7 · slides 20–22, 30"}
 ],
 "hft": {
- "text": "Your bot already has two threads; this session makes the handoff between them correct, lock-free and bounded — first across threads (Phase 3), then across processes (Phase 4).",
+ "text": "Your Session 6 ring is the seam between the wire and the strategy; this session makes the wire side of it cheap, then tunes the machine it runs on.",
  "paragraphs": [
-  "You already have two threads whether you planned it or not. IXWebSocket reads the socket and decodes on its own background receive thread, then calls on_book there; Project Phase 3 moves your strategy onto its own std::jthread. The moment a tick crosses that boundary you are in the C++ memory model, and “it worked on my laptop” is not evidence: races are timing-dependent, so they pass on a quiet machine and fail under load — precisely when the arena is grading you.",
-  "The Session 7 pipeline is fixed in shape. The receive thread copies the tick into a small POD — a symbol id from your symbol map, never a std::string — pushes it into your HW 7 ring and returns. The strategy thread drains the ring, keeps only the latest tick per symbol, and decides. A full ring drops and counts; it never blocks the wire. One gotcha from the deck: the client's latency helpers only time orders sent inside on_book, so decide() must record now - t.recv itself.",
-  "Lock-free is not “faster locks”, it is a different guarantee: no thread can be stalled by another thread's scheduling. That is why it fixes the tail rather than the mean. The deck's queue benchmark makes it concrete on a laptop with no pinning: the SPSC ring sits at 83–125 ns p50 against 0.2–1.3 µs for a mutex-plus-deque, and its p99.9 stays far below the mutex queue's even when scheduler noise hits both.",
-  "Audit the client too, not only your code. The reference client's book cache and latency histogram each take a std::mutex — the receive thread locks one on every book_snapshot, and anything else that reads the cache contends with it. Know every lock on your path, and keep the ones you cannot remove off the tick.",
-  "The correctness bar is tool-enforced, not argued: one producer, one consumer, millions of items, nothing lost or reordered, and the same run silent under -fsanitize=thread in its own binary. If TSan flags a ring that passes every other test, you weakened a cross-thread acquire/release to relaxed or read the payload before checking the index — fix the pairing, never add a mutex or a suppression. And the ring is safe for exactly one producer and one consumer; a second pusher is undefined behaviour that can still give a clean run on a lucky day."
+  "The wire you actually speak in this arena is JSON over WebSocket — convenient, and the opposite of what fast venues do. Every message is a discriminated union keyed on a \"type\" field (book_snapshot, order_ack, place_order, cancel_order…), carried by IXWebSocket and decoded in the reference client by nlohmann/json: json::parse on the whole frame, then field lookups and m[\"bids\"][0][0] for the touch. That is your baseline, and beating it offline is Project Phase 5.",
+  "Codec cost is not a footnote in tick-to-trade, it is a large slice of it. The deck's reference measurement on an Apple M4 over 4,057 replayed snapshots is p50 33.4 µs, p99 52.7 µs, p99.9 72.9 µs for the reference client; your numbers will differ, so your baseline is whatever your machine prints first on your tape. Swap on_book's decode for the targeted extract, hand-roll place_order and cancel_order into a reused buffer with your u64toa, and re-run the same tape.",
+  "Correctness on the wire is worth as much as speed, because a silently wrong book loses money quietly. Track the next expected sequence number and treat a jump as loss; verify FIX's mod-256 checksum and reject on mismatch; bounds-check every length before you index with it. On a gap or a bad frame, stop trading that symbol and recover — fail loud and fast.",
+  "The machine knobs compete for the same budget as the code. Phase 5 asks for faster decode or SIMD/prefetch on the hot loop, a pinning attempt, syscalls out of on_book, and the colocation economics — all as before/after percentiles on one tape. Pinning is Linux-only (pthread_setaffinity_np or taskset); report the p99.9 spread with and without, and on a Mac skip the pin, keep the measurement and say so. Spending on colocation while a per-tick allocation sits in on_book is buying nanoseconds to hide microseconds.",
+  "Prove every win offline. scripts/latency_replay.py feeds a recorded tape to hft_bot --replay on stdin and prints p50/p99/p99.9 — deterministic, same input every run — so a change is attributed rather than guessed. A faster build that prints a different checksum (the -ffast-math trap from the lab) changed the math, and it does not count."
  ],
  "example": {
   "title": "In the arena",
-  "code": """// hft/cpp_client/src/arena_client.cpp — dispatch(), on the receive thread
-        {
-            std::lock_guard<std::mutex> lk(book_mtx_);
-            books_[bv.symbol] = bv;
-        }
-        on_book_snapshot(bv, recv_time);""",
-  "text": "hft/cpp_client/src/arena_client.cpp — the reference client locks book_mtx_ on the receive thread for every book_snapshot before it calls your handler, and hft/cpp_client/include/arena_client.hpp declares that mutex next to the latency histogram's. Phase 3 is where you decide which locks stay on the path: push a POD tick into your ring from on_book and let the strategy thread do the rest."
+  "code": """// hft/cpp_client/src/arena_client.cpp — dispatch(): the DOM you are asked to beat
+    json m;
+    try {
+        m = json::parse(raw);
+    // ...
+        if (m.contains("bids") && m["bids"].is_array() && !m["bids"].empty())
+            bv.best_bid = m["bids"][0][0].get<double>();
+        if (m.contains("asks") && m["asks"].is_array() && !m["asks"].empty())
+            bv.best_ask = m["asks"][0][0].get<double>();""",
+  "text": "hft/cpp_client/src/arena_client.cpp — the reference client parses every book_snapshot into a full nlohmann/json tree and then reads the touch from the first [price, qty] level of each side. The Session 7 take-home replaces this path with a targeted extract over the frame and measures the before/after with scripts/latency_replay.py on the same tape."
  }
 },
 "interview": [
- {"q": "What is a data race, and why is “it printed the right number” not evidence that there isn't one?",
-  "a": "A data race is two threads accessing the same memory location, at least one writing, with no happens-before edge ordering them. The standard makes that undefined behaviour, not “a stale value”: the compiler is allowed to transform the code as if the race cannot happen. The classic demonstration is two threads incrementing a plain long a million times each — at -O0 you lose updates and get a different total every run, at -O2 you get exactly 2,000,000 because the optimiser folded each loop into one add. The correct-looking answer is still a race; only a happens-before argument or ThreadSanitizer tells you otherwise.",
-  "level": "warm-up", "skill": "cpp.data-races"},
- {"q": "What does compare_exchange do, why is it always written in a loop, and when do you use weak versus strong?",
-  "a": "It atomically compares the object with an expected value and, only if they are equal, replaces it with the desired value; it returns whether it succeeded and, on failure, overwrites expected with the value actually seen. It lives in a loop because failure means someone else changed the object, so you recompute your update from the refreshed value and try again — the update must be recomputed inside the loop or you keep proposing a value derived from stale data. weak may fail spuriously (a load-linked/store-conditional interrupted on Arm), so it is the cheap choice inside a retry loop; strong fails only on a genuine mismatch and suits a one-shot attempt you branch on.",
-  "level": "warm-up", "skill": "cpp.compare-and-swap"},
- {"q": "Explain the acquire/release pattern, and say when memory_order_relaxed is a bug.",
-  "a": "The producer writes a plain payload and then release-stores an atomic flag; the consumer acquire-loads the flag and, once it observes the stored value, reads the payload. The release store synchronizes-with the acquire load, so everything sequenced before the store happens-before everything sequenced after the load, and the payload is guaranteed visible. relaxed is right when you need atomicity but no ordering — a free-running counter of dropped ticks whose total is read later. It is a bug whenever the atomic signals that other memory is ready, because relaxed creates no happens-before edge: the consumer can see the flag set while the payload writes are still invisible, and TSan will report it.",
-  "level": "core", "skill": "cpp.atomics-memory-order"},
- {"q": "Why does an uncontended mutex look cheap in a benchmark and still ruin a latency tail in production?",
-  "a": "Uncontended, lock and unlock are a couple of atomic operations — nanoseconds, which is what a naive benchmark measures; in a contended burst the holder can even win the median by running many uncontended acquisitions in a row. Contended, the loser blocks in the kernel on a futex: a context switch and a scheduler wake-up, microseconds, and unbounded if a descheduled thread holds the lock (priority inversion). Contention correlates with market activity, so the expensive case lands on exactly the ticks you needed to win. The lab's lock_tail measurement shows it: mutex p50 below the atomic's, p99.9 several times worse. Locks are correct; they belong off the tick path.",
-  "level": "core", "skill": "perf.lock-tail-cost"},
- {"q": "In an SPSC ring's push, which memory orders go where, and why?",
-  "a": "The producer loads its own tail_ relaxed — nobody else writes it, so relaxed is the correct order, not a shortcut. It acquire-loads head_, so it observes the consumer's release store and knows the slot it is about to overwrite has really been read. It writes the payload into buf_[t & mask], then release-stores tail_ + 1, so the slot write cannot be reordered after the publication — which is what guarantees the consumer never reads a slot before its data is visible. pop() is the mirror: own head_ relaxed, acquire tail_, read, release head_. Getting the release on the published index wrong is the classic bug, and it often still passes on x86.",
-  "level": "core", "skill": "perf.spsc-ring"},
- {"q": "Why must the ring's capacity be a power of two, and why are the two indices alignas(64)?",
-  "a": "A power-of-two capacity makes the wrap pos & (cap - 1) instead of pos % cap, replacing an integer division with a one-cycle AND on the hottest line of the queue; and with monotonic unsigned counters, tail - head stays correct across wraparound because the difference never exceeds the capacity. The alignment is about false sharing: the producer writes tail_ on every push and the consumer writes head_ on every pop, so if they share a 64-byte line the two cores invalidate each other's copy on every operation and the queue slows down the harder you drive it — correct, but silently serialised. A third aligned group keeps the read-only capacity, mask and buffer pointer off both hot lines.",
-  "level": "core", "skill": "perf.cache-line-alignment"},
- {"q": "The ring is full during a message storm. What are your options, and which one fits market data?",
-  "a": "Spin until there is room, grow the buffer, drop the newest, drop the oldest, or coalesce. Spinning is the worst on the socket thread: you stop reading the wire, which reintroduces a lock's blocking behaviour. Growing without bound turns a latency problem into a memory problem and hides the slow consumer until the machine swaps. For top-of-book snapshots coalescing is right — a newer snapshot supersedes an older one, so keeping only the latest per symbol stays current and bounded. Fills and acks are not idempotent, so they cannot be dropped; they belong on a separately sized queue where full is an alert. Either way, count the rejects in a relaxed atomic and report them.",
-  "level": "core", "skill": "perf.back-pressure"},
- {"q": "You want the same lock-free ring between two processes rather than two threads. What changes, and what does not?",
-  "a": "The synchronisation does not change: you create the region with shm_open, size it with ftruncate and mmap it MAP_SHARED into both processes, and the atomics work across it because cache coherence is a hardware property, not a process property — one release store and one acquire load give the same happens-before edge spanning two address spaces. What changes is the layout contract. No pointers, because an address is only meaningful in one process, so you store indices; no std::string or std::vector, because they own heap memory in one process; and only always-lock-free atomics, which is why the ring static_asserts is_always_lock_free — a lock-based atomic's hidden lock lives in one address space. The creator calls init() exactly once, before the other side attaches.",
-  "level": "senior", "skill": "perf.shared-memory-ring"},
- {"q": "What is the ABA problem, and does it affect an SPSC ring buffer? Which progress guarantee does its push give?",
-  "a": "ABA is when a CAS succeeds because the value it compares has returned to its original bit pattern while the structure changed underneath — classically a lock-free stack whose popped node was freed and pushed back, so the old head pointer looks valid but its next field is stale. The fixes (a version tag CAS'd with the pointer, hazard pointers, epochs) are memory-reclamation schemes. It does not affect an SPSC ring: the ring does no CAS, and its indices are monotonic counters rather than recycled pointers. And because push has no retry loop — a bounded number of its own steps, always — it is wait-free, not merely lock-free; lock-free only promises that some thread progresses.",
-  "level": "senior", "skill": "cpp.compare-and-swap"}
+ {"q": "Why do venues ship market data over UDP multicast but take orders over TCP?",
+  "a": "Multicast lets the venue send each update once while the switches replicate it to every subscriber — the only cheap way to fan a firehose out to hundreds of consumers — and UDP does not retransmit, so one lost packet does not stall the ones behind it. Order entry is a single stream where losing a message is unacceptable, so TCP's reliability and ordering are worth its head-of-line blocking (plus TCP_NODELAY so Nagle does not batch your orders). The price of the data choice is that you detect loss yourself from sequence numbers, arbitrate the A/B feeds, and recover.",
+  "level": "warm-up", "skill": "trading.feed-sequencing"},
+ {"q": "Why is fixed-width binary faster to decode than tag=value text, and why memcpy rather than reinterpret_cast?",
+  "a": "Every field sits at a known offset in a known-length message, so there is no delimiter scan and no ASCII-to-number conversion: you copy the bytes and byte-swap from network order, and prices are scaled integers, so there is no floating-point parse either. memcpy because casting a packed struct pointer onto a byte buffer is undefined behaviour — misaligned access and a strict-aliasing violation — while a fixed-size memcpy is well-defined and compiles to the same single load.",
+  "level": "warm-up", "skill": "trading.binary-market-data"},
+ {"q": "What is wrong with assuming one recv() returns one message?",
+  "a": "TCP is a byte stream and does not preserve send boundaries, so a read can deliver half a message, one and a half, or several — the most common networking bug there is. The correct structure is to append into a persistent buffer allocated once, loop while a complete frame is present (length prefix or FIX BodyLength), dispatch each as a view, and memmove the partial remainder to the front so the next read continues it. And validate the length against a maximum before trusting it, because a corrupt length is a buffer overrun.",
+  "level": "core", "skill": "tools.message-framing"},
+ {"q": "FIX is text and slow to parse. Why is it still everywhere, and what does its session layer buy you?",
+  "a": "Because it is a session protocol as much as a message format: sequence numbers, heartbeats, logon and resend requests plus a mod-256 checksum in tag 10 give an auditable, recoverable conversation with a counterparty, and it is self-describing so two firms can add a tag without breaking each other. That is exactly what order entry, drop copies and allocations need, where a few hundred nanoseconds of parsing is irrelevant next to never losing an order. Fast market data went binary because none of that is worth a per-byte scan at millions of messages a second.",
+  "level": "core", "skill": "trading.fix-protocol"},
+ {"q": "Concretely, what does a DOM-style JSON parser do that a targeted extractor does not?",
+  "a": "It parses the entire document, including every level and field you will never read; it builds a tree of heap-allocated nodes — maps, vectors, std::strings — which is dozens of allocations per message; it copies keys and values out of the receive buffer; and it dispatches on types generically. A targeted extractor scans once for the keys it needs (for the arena, \"bids\":[[, \"asks\":[[ and \"mid_price\":), converts each number in place over a string_view of the buffer, and allocates nothing. The trade is that you now own schema assumptions the library would have checked, so you validate the shape once at connect.",
+  "level": "core", "skill": "perf.zero-copy-parse"},
+ {"q": "What is the difference between level-triggered and edge-triggered readiness, and what must you do differently?",
+  "a": "Level-triggered keeps reporting the descriptor while data remains, so a partial read is safe — you will be told again. Edge-triggered reports only the transition to readable: fewer wake-ups, but you must drain the socket in a loop until recv returns EAGAIN, otherwise the remaining bytes sit there and no new notification ever comes — the stall nobody can reproduce. EAGAIN is therefore not an error in that loop; it is the signal that readiness is exhausted and you return to the event loop.",
+  "level": "core", "skill": "perf.nonblocking-io"},
+ {"q": "Your -O3 build is 6x faster than -O0, but the vectorization report says the hot loop was not vectorized. How is that possible, and what do you do?",
+  "a": "The 6x is inlining, register allocation and scheduling, not SIMD. The loop accumulates a floating-point sum in order, and FP addition is not associative, so splitting it across eight lanes would change the result — the compiler is not allowed to. -ffast-math grants permission to reassociate: it vectorizes and the checksum moves, which means the math changed, so it is not a free win in a pricing kernel. Other common refusals are possible aliasing (fix with __restrict), data-dependent branches, odd strides and unknown trip counts. Ask the compiler first with -Rpass-missed=loop-vectorize or -fopt-info-vec, fix the obstacle, and write intrinsics only as a last resort.",
+  "level": "core", "skill": "perf.simd"},
+ {"q": "What does kernel bypass actually change, and what does it cost you?",
+  "a": "It removes the kernel's generic network stack from the per-packet path: no copies through protocol layers, no syscall per receive, packets read straight from the NIC's rings in user space — which is also why the thread busy-polls a dedicated core instead of sleeping. DPDK gives the most control but you write driver-level code and often your own protocol handling; Onload/ef_vi accelerates the ordinary sockets API via LD_PRELOAD with almost no code change but ties you to that vendor's NIC; io_uring only batches syscalls through shared rings and is not bypass. The costs: vendor lock-in, a core burned at 100%, and losing the kernel's tooling and protection.",
+  "level": "senior", "skill": "perf.kernel-bypass"},
+ {"q": "You pinned the hot thread and the median did not move. Was it a waste? What else belongs in the same change?",
+  "a": "No — pinning buys variance, not speed. What it removes is the rare 1–3 ms preemption or migration that lands in p99.9, so you judge it by the p99.9 spread across repeated runs of the same tape, not by p50. It only works fully with the rest of the recipe: isolate the core (isolcpus, nohz_full, rcu_nocbs) so nothing else is scheduled there, allocate on the NIC's NUMA node, and pre-fault and mlock hot memory — ideally on huge pages — at startup so no first-touch page fault or TLB storm happens mid-race. On macOS there is no affinity API, so you skip the pin and report that honestly.",
+  "level": "senior", "skill": "perf.cpu-pinning-numa"}
 ]
 }

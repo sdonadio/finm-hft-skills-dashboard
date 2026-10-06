@@ -1,159 +1,170 @@
 # -*- coding: utf-8 -*-
-"""Session 8 focus — The wire & the machine (deck U8, labs/session08.md).
+"""Session 8 focus — The tail & the tournament (deck U8, labs/session08.md).
 
-Sources: u8.pptx (slides cited from its real numbering; 26-30 are the self-study
-appendix), session8_talking_points.md, labs/session08.md (steps 1-5).
+Two halves: profile and kill the latency tail (perf, flame graphs, counters,
+jitter, PGO/LTO, sanitizers, quiet logging — Lab A), then latency arbitrage,
+market making at speed and the live tournament, then Session 9 adds the pre-trade risk controls every one of these
+fast paths needs, and the final exam follows (Dec 8-11).
 Every `code` snippet is compiled and run by tools/validate_focus.py.
 """
 
-FILE_SCOPE = {"v_s8_c3": 6, "v_s8_c4": 7}   # "v_s8_cK": leading lines at file scope
+FILE_SCOPE = {       # "v_s8_cK": number of leading lines that go at file scope
+    "v_s8_c3": 7,
+    "v_s8_c5": 4,
+    "v_s8_c6": 7,
+}
 
 S = {
 "n": 8,
-"focus": "The wire & the machine",
-"tagline": "Parse a wire message in tens of nanoseconds without allocating, never block on a socket, and know which machine-level knobs buy the last microseconds.",
+"focus": "The tail & the tournament",
+"tagline": "Find where the microseconds go, kill the spikes without changing the answer — then race a fee-aware, tail-tight bot on one scoreboard.",
 "concepts": [
- {"title": "FIX: tag=value, the lingua franca of order entry",
-  "text": "FIX is text: an integer tag, '=', the value, then the SOH byte (0x01), with a session layer of logon, heartbeats, sequence numbers and resends on top. BeginString (8=) and BodyLength (9=) come first on purpose, so a reader knows exactly where the message ends, and CheckSum (10=) is the byte sum of everything before it, mod 256. It is ubiquitous for orders and rare for fast market data, because reading it means scanning every byte and converting ASCII digits to numbers. HW 8 part 1 is that loop done properly: one forward pass over tags 11/55/54/38/44, no allocation, the ClOrdID kept as a view into the buffer, and false on malformed input — and no assumption about the order of body tags.",
-  "code": """const char* msg = "35=D\\00155=NVDA\\00154=1\\00138=200\\00144=182.50\\001";
-for (const char* p = msg; *p; ) {
-  int tag = 0;
-  while (*p != '=') tag = tag * 10 + (*p++ - '0');    // digit math, per byte
-  const char* v = ++p;                                // skip '='
-  while (*p && *p != '\\001') ++p;                     // scan to the SOH
-  if (tag == 55 || tag == 44) std::printf("%d=%.*s ", tag, int(p - v), v);
-  if (*p) ++p;                                        // skip the SOH
+ {"title": "Why the mean lies",
+  "text": "Latency distributions are not Gaussian: they are heavy-tailed and usually bimodal, a tight fast body plus rare stalls from a fault, a miss cascade or a preemption. The mean lands in the valley between the two populations and describes no tick anyone experienced, so report p50 / p99 / p99.9 / max. Two traps: coordinated omission, where timing request-to-request under-samples exactly the slow periods (the replay tape feeds a fixed schedule, which is why it is the grading harness), and too few samples — p99.9 needs thousands of points, and one run is one draw.",
+  "code": """std::vector<long> us(1000, 38);                       // the fast body
+for (int i = 990; i < 996; ++i) us[i] = 71;
+for (int i = 996; i < 999; ++i) us[i] = 210;
+us[999] = 5200;                                       // the tick you lost
+std::sort(us.begin(), us.end());
+double mean = std::accumulate(us.begin(), us.end(), 0.0) / us.size();
+auto p = [&](double q) { return us[std::size_t(q * us.size())]; };
+std::printf("mean=%.2f p50=%ld p99=%ld p99.9=%ld max=%ld\\n",
+            mean, p(.50), p(.99), p(.999), us.back());
+// mean=43.88 p50=38 p99=71 p99.9=5200 max=5200""",
+  "deck": "Deck U8 · slide 5"},
+ {"title": "perf, flame graphs — and counters that say why",
+  "text": "Linux perf is the low-overhead sampling profiler, and three verbs carry you: perf stat for totals (cycles, IPC, cache and branch misses) as the cheap first move, perf record -g --call-graph dwarf to sample stacks, perf report to rank them — then fold the stacks into a flame graph where width is time on CPU, so wide plateaus are the targets and tall thin towers are merely deep. It is on-CPU only: a sleep, a lock wait or a blocked syscall does not show. The profile says where; the counters say why. Low IPC on a hot loop means stalls, not work; a DRAM miss is 200-plus cycles; a branch mispredict flushes the pipeline for 15 to 20 — rare-but-expensive, the exact shape of a tail. Your bot profiles the same way: hft_bot --replay reads snapshots on stdin.",
+  "code": """uint32_t s = 2463534242u; long branchy = 0, branchless = 0;
+for (int i = 0; i < 1000; ++i) {
+  s ^= s << 13; s ^= s >> 17; s ^= s << 5;        // deterministic pseudo-noise
+  int x = int(s & 0xff);
+  if (x > 127) branchy += x; else branchy -= x;   // ~50% mispredict: a flush
+  branchless += (x > 127) ? x : -x;               // same value, no jump
 }
-std::puts("");
-// 55=NVDA 44=182.50""",
-  "deck": "Deck U8 · slides 5, 29"},
- {"title": "Binary feeds: decode is a load and a byte swap",
-  "text": "Fast venues abandon text. ITCH/OUCH-style messages are fixed-width — an 18-byte add-order is type, id, side, quantity and price at known offsets — prices are scaled integers (1825000 means 182.50), and the wire is big-endian. So decoding is a bounds-and-type check, then a memcpy and a byte swap per field: no delimiter scan, no atoi, no allocation. Use memcpy, not reinterpret_cast of a packed struct onto the buffer: the cast is alignment and strict-aliasing undefined behaviour, and an 8-byte memcpy compiles to one load anyway. When you want a schema instead of hand-rolled offsets, SBE is this same layout with codegen; FlatBuffers reads fields in place; Protobuf must decode into objects first.",
-  "code": """inline std::uint32_t be32(const std::uint8_t* p) {
-  std::uint32_t v; std::memcpy(&v, p, 4); return __builtin_bswap32(v); }
-int main() {       // wire: [type 1][id 8][side 1][qty 4][px 4] = 18 bytes, big-endian
-  std::uint8_t w[18]{}; w[0] = 'A'; w[9] = 'B'; std::size_t n = sizeof w;
-  std::uint32_t q = __builtin_bswap32(100), px = __builtin_bswap32(1825000);
-  std::memcpy(w + 10, &q, 4); std::memcpy(w + 14, &px, 4);   // as the venue sent it
-  if (n < 18 || w[0] != 'A') return 1;                       // bounds + type FIRST
-  std::printf("%c qty=%u px=%.2f\\n", char(w[9]), be32(w + 10), be32(w + 14) / 10000.0);
+std::printf("%ld %ld %s\\n", branchy, branchless,
+            branchy == branchless ? "identical" : "differ");
+// 52160 52160 identical     -- a mispredict costs 15-20 cycles; a select cannot""",
+  "deck": "Deck U8 · slides 6–7"},
+ {"title": "Every spike has a physical cause",
+  "text": "Name the cause and the fix is targeted and permanent: allocation on the hot path (malloc usually fast, occasionally locking or calling mmap — pools and reserved buffers), page faults (pre-fault and mlock at startup), cache, TLB and NUMA misses (compact hot data, huge pages, node-local memory), and hidden O(n) or I/O (a resize, a rehash, a window recompute, a log line). Lab A's tail.cpp builds a fresh vector and re-sums 257 prices every tick; the fix is a ring sized once plus a running sum, and the proof is the same sink to the last digit with p99.9 collapsed. What is left in max after that is the OS itself — the jitter probe on an idle loop still sees gaps of 100-plus µs — which is what core isolation, IRQ routing and pinning exist to shrink.",
+  "code": """struct RollingMean {                 // allocated ONCE, O(1) per tick
+  std::vector<double> buf; std::size_t cap, count = 0, head = 0; double sum = 0;
+  explicit RollingMean(std::size_t n) : buf(n, 0.0), cap(n) {}
+  double push(double px) {
+    if (count == cap) sum -= buf[head]; else ++count;
+    sum += px; buf[head] = px; head = (head + 1 == cap) ? 0 : head + 1;
+    return sum / double(count); } };
+std::vector<double> px(5000); for (int i = 0; i < 5000; ++i) px[i] = 100 + (i % 97) * 0.01;
+RollingMean roll(256 + 1); double naive = 0, fast = 0;   // window is INCLUSIVE: 257
+for (int k = 4999 - 256; k <= 4999; ++k) naive += px[k];  // tail.cpp's re-sum
+for (double p : px) fast = roll.push(p);   std::printf("%.6f %.6f\\n", naive / 257, fast);
+// 100.451556 100.451556   -- same answer, zero allocations per tick""",
+  "deck": "Deck U8 · slides 8–9, 12"},
+ {"title": "Ship the release build; keep correctness and logging off the hot path",
+  "text": "Once the algorithm is right, let the toolchain finish: -O3, -march=native for this CPU, -flto to optimise across .cpp files, -DNDEBUG to strip asserts, -g kept because symbols cost no speed and perf needs them, and a two-pass PGO build on a representative input so the compiler sees real branch data — one CMake build directory per flag set, --fresh, or the cache silently ignores your flags. Correctness is its own build: ASan + UBSan together, TSan separately, both clean on the replay, never shipped. And the hot thread does no I/O: it pushes a 32-byte POD record into your Session 6 ring, counts a drop if the ring is full, and moves on; a logger thread formats and writes.",
+  "code": """struct LogRec { uint64_t ts_ns; uint32_t code, sym; double px; int64_t qty; };
+static_assert(sizeof(LogRec) == 32);                       // one POD copy per event
+std::array<LogRec, 4> ring{}; std::size_t head = 0, tail = 0; long dropped = 0;
+for (int i = 0; i < 6; ++i) {                              // 6 fills, nobody draining yet
+  if (head - tail == ring.size()) { ++dropped; continue; } // full: count it, never block
+  ring[head++ % ring.size()] = LogRec{uint64_t(i), 1, 7, 100.0 + i, 100};
 }
-// B qty=100 px=182.50     -- no delimiter scan, no atoi, no allocation""",
-  "deck": "Deck U8 · slides 6, 27"},
- {"title": "TCP for orders, UDP multicast for data — and the sequence number",
-  "text": "Orders and market data make opposite transport choices. Order entry uses TCP because an order must never be lost — and TCP's failure mode is delay: one lost segment stalls every byte behind it (head-of-line blocking), and Nagle coalesces small writes unless you set TCP_NODELAY. Market data is UDP multicast: the venue sends each packet once and the switches fan it out, whole datagrams or nothing, and UDP's failure mode is loss, which shows up as a sequence gap. Venues publish identical A/B feeds on separate paths; you take whichever copy lands first. Track the next expected sequence number: lower is a duplicate (the slower A/B copy), higher is a gap, and until snapshot-plus-increment recovery completes the book is stale — stop quoting that symbol.",
-  "code": """struct SeqTracker { enum Verdict { APPLY, DUP, GAP };
-  std::uint64_t next = 1; bool stale = false;
-  Verdict on_msg(std::uint64_t seq) {
-    if (seq < next) return DUP;                      // the slower A/B copy
-    if (seq > next) { stale = true; return GAP; }    // loss: stop quoting
-    ++next; return APPLY; } };
-SeqTracker t; const char* v[] = {"APPLY", "DUP", "GAP"};
-for (std::uint64_t s : {1, 2, 2, 3, 5}) std::printf("%s ", v[t.on_msg(s)]);
-std::printf("| next=%llu stale=%d\\n", (unsigned long long)t.next, int(t.stale));
-// APPLY APPLY DUP APPLY GAP | next=4 stale=1""",
-  "deck": "Deck U8 · slides 7–8"},
- {"title": "Framing inside a non-blocking read loop",
-  "text": "A TCP socket delivers bytes, not messages: one recv can return half a message or three, and assuming otherwise is the most common networking bug in student code. Length-prefix framing reads the header, waits for the whole body, dispatches a view (no copy), and returns how much it consumed so the caller keeps the partial tail — and it validates the length against a maximum before trusting it, because a corrupt length is a buffer overrun. The framer runs inside a readiness loop: the fd is O_NONBLOCK, poll/epoll/kqueue says it is readable, and the handler drains into one buffer allocated once until recv returns EAGAIN, which means “drained”, not an error. Edge-triggered mode fires once, so stopping early strands the rest of the bytes with no new wake-up.",
-  "code": """using Handler = void (*)(const std::uint8_t*, std::size_t);
-std::size_t drain_frames(const std::uint8_t* buf, std::size_t len, Handler on_msg) {
-  std::size_t off = 0; while (len - off >= 2) {     // [u16 big-endian len][payload]
-    std::size_t n = std::size_t(buf[off]) << 8 | buf[off + 1];
-    if (len - off - 2 < n) break;                   // partial: wait for more
-    on_msg(buf + off + 2, n); off += 2 + n; }       // a view, no copy
-  return off; }                                     // caller keeps [off, len)
-const std::uint8_t in[] = {0,3,'a','b','c', 0,4,'d','e'};   // one recv: 1.5 frames
-auto used = drain_frames(in, sizeof in, [](const std::uint8_t* p, std::size_t n) {
-  std::printf("%.*s ", int(n), (const char*)p); });
-std::printf("| used=%zu leftover=%zu\\n", used, sizeof in - used);
-// abc | used=5 leftover=4     -- the partial second frame waits for the next read""",
-  "deck": "Deck U8 · slides 9, 11–12"},
- {"title": "Read three fields, not thirty — and a send path with no snprintf",
-  "text": "A general JSON parser reads every field, builds a heap tree and copies strings; the hot path needs three numbers. The arena's book_snapshot carries bids and asks as arrays of [price, qty] with the touch at index 0, plus mid_price — there is no bid or ask key — so the targeted extract finds \"bids\":[[ and strtods what follows, over a string_view of the socket buffer. It assumes the venue's compact, well-formed JSON, so validate the shape once at connect. The send side is the mirror: you only ever emit a few shapes, so write them straight into a reused buffer — no snprintf parsing its format string on every call, no std::string. The number-to-text step is HW 8 part 2 (u64toa, correct on 0 and UINT64_MAX, faster than std::to_string). And do not batch the hot path: every message held to batch is latency you added.",
-  "code": """std::string_view f = R"({"type":"book_snapshot","symbol":"AAPL",)"
-  R"("bids":[[309.90,4.0],[309.80,7.0]],"asks":[[310.30,9.0]],"mid_price":310.10})";
-auto num_after = [f](std::string_view key) {          // no DOM, no allocation
-  std::size_t k = f.find(key);
-  if (k == f.npos) return 0.0;                        // absent or empty side
-  return std::strtod(f.data() + k + key.size(), nullptr); };   // parse in place
-std::printf("%.2f %.2f %.2f\\n", num_after("\\"bids\\":[["),
-            num_after("\\"asks\\":[["), num_after("\\"mid_price\\":"));
-// 309.90 310.30 310.10     -- the touch on each side and the mid; the rest skipped""",
-  "deck": "Deck U8 · slides 13–15"},
- {"title": "The memory wall, SIMD and prefetch: let the compiler go first",
-  "text": "On the hot path you are memory-bound: an L1 hit is about four cycles, a DRAM miss 200 or more, memory moves in 64-byte lines, and a TLB miss walks the page table. Linear access lets the hardware prefetcher run ahead; pointer chasing defeats it. An AVX2 register holds eight floats, and the right order is: build -O3 -march=native, read the vectorization report (clang -Rpass-missed=loop-vectorize, GCC -fopt-info-vec), and hand-write intrinsics only when it refuses. The lab's punchline: -O3 makes the kernel 6x faster and the report still says “loop not vectorized”, because an in-order float sum cannot be split across lanes without changing the answer — -ffast-math vectorizes it and moves the checksum. __builtin_prefetch is a hint: no fault, no stall, a distance you tune by measurement.",
-  "code": """std::vector<float> x(1 << 16);
-for (std::size_t i = 0; i < x.size(); ++i) x[i] = 1.0f / float(i + 1);
-float in_order = 0;                                   // what -O3 must preserve
-for (float v : x) in_order += v;
-float lane[8] = {};                                   // what 8 SIMD lanes would compute
-for (std::size_t i = 0; i < x.size(); ++i) lane[i % 8] += x[i];
-float lanes = 0; for (float l : lane) lanes += l;
-std::printf("%s\\n", in_order == lanes ? "same" : "different: FP + is not associative");
-// different: FP + is not associative""",
-  "deck": "Deck U8 · slides 18–19"},
- {"title": "Get the kernel out of the way, own the core, and stamp the wire",
-  "text": "A syscall is a mode switch — typically hundreds of nanoseconds, more under load — so the cheapest one on the hot path is the one you never make: pre-allocate, reuse buffers, never log from on_book. Sleeping in epoll_wait adds a wake-up and jitter, so HFT busy-polls a dedicated core. Kernel bypass skips the generic stack: DPDK owns the NIC from user space, Onload/ef_vi accelerates ordinary sockets via LD_PRELOAD, AF_XDP is an in-kernel fast path, and io_uring batches syscalls without bypassing anything. Then take control of the machine: pin the hot thread to an isolated core (pinning buys variance, not speed — macOS has no affinity API, so skip it and say so), keep memory on the NIC's NUMA node, and pre-fault and mlock hot memory so no first-touch fault lands mid-race. Cross-box latency needs PTP-synchronised clocks and NIC hardware timestamps; past that, FPGAs.",
-  "code": """constexpr std::size_t kBytes = 1 << 20, kPage = 4096;   // at startup, not in on_book
-char* hot = static_cast<char*>(std::malloc(kBytes));
-std::size_t touched = 0;
-for (std::size_t off = 0; off < kBytes; off += kPage) {  // first touch = page fault
-  hot[off] = 0; ++touched; }                             // ...paid now, before the open
-std::printf("pre-faulted %zu x 4 KiB before SESSION_OPEN\\n", touched);
-std::free(hot);
-// pre-faulted 256 x 4 KiB before SESSION_OPEN""",
-  "deck": "Deck U8 · slides 20–22, 30"}
+std::printf("queued=%zu dropped=%ld\\n", head - tail, dropped);
+// queued=4 dropped=2   -- the hot thread never waits on I/O""",
+  "deck": "Deck U8 · slides 10–11"},
+ {"title": "Picking off a stale quote — after fees",
+  "text": "The same name trades on many venues, news reaches them at different times, and for microseconds they disagree. Consolidate the touches into the NBBO: locked means best bid equals best ask across venues, crossed means somebody's quote is stale. Picking it off takes both legs aggressively, so both pay the taker fee — at the arena's 30 bps a one-cent cross loses 59 cents a share, and only a shock-sized dislocation pays. Then it is a race: everyone sees the same public quote, the first order to reach that venue gets the fill, colocation is the tiebreaker, size is the thin side, and the real risk is a one-legged fill that turns a riskless arb into a directional position. Smart order routing picks the venue net of fees, rebates and per-venue latency.",
+  "code": """struct Top { double bid, ask; int bid_sz, ask_sz; };
+double edge(const Top& A, const Top& B, double bps) {   // buy B's ask, sell A's bid
+  return A.bid - B.ask - (A.bid + B.ask) * bps * 1e-4;   // a taker fee on BOTH legs
+}
+Top A{100.05, 100.07, 300, 300}, B{100.02, 100.04, 200, 200};   // B has not caught up
+std::printf("1c cross: %+.4f\\n", edge(A, B, 30));
+Top S{101.00, 101.02, 300, 300};                                // a shock-sized gap
+std::printf("96c cross: %+.4f  qty=%d\\n", edge(S, B, 30), std::min(S.bid_sz, B.ask_sz));
+// 1c cross: -0.5903
+// 96c cross: +0.3569  qty=200""",
+  "deck": "Deck U8 · slides 14–16"},
+ {"title": "Market making at speed: queue, skew, hold",
+  "text": "A maker earns the spread and the rebate, anchors fair value on the microprice rather than the mid, and leans both quotes against inventory — fair = microprice − k × position — so risk comes off through flow the market pays for. Cancel-and-repost sends you to the back of the FIFO, so most ticks the right move is HOLD: cancel if the price moved against you, requote only if you are off the best price or buried behind more than half the level. With the tournament's quota of six messages a tick, a needless requote costs a message and the queue spot. The arena hands you queue_ahead and level_qty in on_ack / on_queue; real venues do not.",
+  "code": """enum Action { HOLD, REQUOTE, CANCEL };
+Action decide(double my_px, double best_px, int ahead, int level, bool against) {
+  if (against)           return CANCEL;    // stale: pull it
+  if (my_px != best_px)  return REQUOTE;   // off the best price
+  if (ahead > level / 2) return REQUOTE;   // buried in the queue
+  return HOLD; }                           // good spot: save the message
+const char* nm[] = {"HOLD", "REQUOTE", "CANCEL"};
+double fair = 100.016 - 0.002 * 3;         // microprice - k * inventory (long 3)
+std::printf("%s %s fair=%.3f\\n", nm[decide(100.00, 100.00, 200, 1000, false)],
+            nm[decide(100.00, 100.00, 800, 1000, false)], fair);
+// HOLD REQUOTE fair=100.010""",
+  "deck": "Deck U8 · slide 17"},
+ {"title": "Markouts, and the grade that has four axes",
+  "text": "A fast fill can be a bad fill: when an informed trader hits your quote right before the move, you were the stale quote. The markout is the truth — mark each fill against the mid a moment later, signed by side; persistently negative on a symbol is toxic flow, so widen, skew away or stop quoting it. The arena computes it server-side at 100 ms, 1 s and 5 s, and the tournament's MM SCORE is realized P&L + rebates + 1-second markout − carry, in dollars. The board also ranks p99.9, OTR (messages per trade, lower wins) and passive share — optimise one axis and you wreck another. Tonight's rank is bragging rights; Canvas Phase 7 grades the tagged commit and the write-up.",
+  "code": """auto markout = [](bool bought, double fill, double later) {
+  return bought ? later - fill : fill - later;           // + good fill, - picked off
+};
+double a = markout(true, 100.04, 100.01);                // bought the top
+double b = markout(false, 100.06, 100.03);               // sold before the drop
+double mm = 14.00 + 1.00 + 100 * (a + b) - 0.50;         // realized + rebates + markout*qty - carry
+std::printf("%+.2f %+.2f MM=%.2f\\n", a, b, mm);
+// -0.03 +0.03 MM=14.50""",
+  "deck": "Deck U8 · slides 18, 23"}
 ],
 "hft": {
- "text": "Your Session 7 ring is the seam between the wire and the strategy; this session makes the wire side of it cheap, then tunes the machine it runs on.",
+ "text": "Why this matters in HFT",
  "paragraphs": [
-  "The wire you actually speak in this arena is JSON over WebSocket — convenient, and the opposite of what fast venues do. Every message is a discriminated union keyed on a \"type\" field (book_snapshot, order_ack, place_order, cancel_order…), carried by IXWebSocket and decoded in the reference client by nlohmann/json: json::parse on the whole frame, then field lookups and m[\"bids\"][0][0] for the touch. That is your baseline, and beating it offline is Project Phase 5.",
-  "Codec cost is not a footnote in tick-to-trade, it is a large slice of it. The deck's reference measurement on an Apple M4 over 4,057 replayed snapshots is p50 33.4 µs, p99 52.7 µs, p99.9 72.9 µs for the reference client; your numbers will differ, so your baseline is whatever your machine prints first on your tape. Swap on_book's decode for the targeted extract, hand-roll place_order and cancel_order into a reused buffer with your u64toa, and re-run the same tape.",
-  "Correctness on the wire is worth as much as speed, because a silently wrong book loses money quietly. Track the next expected sequence number and treat a jump as loss; verify FIX's mod-256 checksum and reject on mismatch; bounds-check every length before you index with it. On a gap or a bad frame, stop trading that symbol and recover — fail loud and fast.",
-  "The machine knobs compete for the same budget as the code. Phase 5 asks for faster decode or SIMD/prefetch on the hot loop, a pinning attempt, syscalls out of on_book, and the colocation economics — all as before/after percentiles on one tape. Pinning is Linux-only (pthread_setaffinity_np or taskset); report the p99.9 spread with and without, and on a Mac skip the pin, keep the measurement and say so. Spending on colocation while a per-tick allocation sits in on_book is buying nanoseconds to hide microseconds.",
-  "Prove every win offline. scripts/latency_replay.py feeds a recorded tape to hft_bot --replay on stdin and prints p50/p99/p99.9 — deterministic, same input every run — so a change is attributed rather than guessed. A faster build that prints a different checksum (the -ffast-math trap from the lab) changed the math, and it does not count."
+  "Nine sessions, one number. A realistic colocated software path from wire in to wire out is roughly 7 to 17 µs — bypass, parse, book and signal, risk check, serialise, send — and every earlier session shaved one of those slices. Session 8 is where you prove it: the LATENCY tab ranks bots by p99.9 tick-to-order, timed with steady_clock from the moment a book_snapshot is decoded to the moment your order leaves, and scripts/latency_replay.py replays the same fixed tape into your bot on stdin so a before/after comparison means something.",
+  "The tail work is a loop, not a trick: profile the replay, name the widest plateau or the physical cause of the spike, fix it without changing the answer, re-run the same tape, and write the before and after into a changelog. That changelog plus a flame graph is Project Phase 6, and Lab A is its template — including the honest bits, like a macOS clock that ticks in 42 ns steps and a max that stays in microseconds after the fix because the OS, not your code, took the time.",
+  "Latency arbitrage is where speed turns directly into P&L, and the fee arithmetic decides it before the race does. Both legs are aggressive, so both pay the taker fee; a crossed NBBO is only worth taking when the dislocation survives two fees, which in the finale means the shocks — AAPL earnings at tick 250, the market-wide econ print at 850, NVDA earnings at 1150. Cross-venue in C++ has a concrete shape: on_book has no venue argument and one client speaks to one venue, so you run one process per venue and share the touch through your Phase 4 shared-memory structure — POD, no pointers, and no torn reads.",
+  "Market making is the other half of the score, and it rewards discipline more than raw speed. The finale's binding constraint is messages, not size: order_quota is 6 per tick against a position limit of 1200, so every cancel-and-repost spends a message and forfeits queue position. MM SCORE adds realized P&L, rebates and the 1-second markout and subtracts carry, which is why the fastest p99.9 rarely wins it: fast is necessary, not sufficient.",
+  "Speed also carries a responsibility. It tightens spreads and links venues; it is also an arms race for access that is openly for sale, which is why real markets add circuit breakers, LULD bands, speed bumps and batch auctions — the finale runs with LULD at 8% and the short-sale rule on. Bring a clean build from a fresh clone, a bot that respects its risk limits, and numbers you can defend; Session 9 adds the controls that decide whether that bot is allowed to send at all, and the cumulative final follows in its own remote window, Dec 8–11."
  ],
  "example": {
   "title": "In the arena",
-  "code": """// hft/cpp_client/src/arena_client.cpp — dispatch(): the DOM you are asked to beat
-    json m;
-    try {
-        m = json::parse(raw);
-    // ...
-        if (m.contains("bids") && m["bids"].is_array() && !m["bids"].empty())
-            bv.best_bid = m["bids"][0][0].get<double>();
-        if (m.contains("asks") && m["asks"].is_array() && !m["asks"].empty())
-            bv.best_ask = m["asks"][0][0].get<double>();""",
-  "text": "hft/cpp_client/src/arena_client.cpp — the reference client parses every book_snapshot into a full nlohmann/json tree and then reads the touch from the first [price, qty] level of each side. The Session 8 take-home replaces this path with a targeted extract over the frame and measures the before/after with scripts/latency_replay.py on the same tape."
+  "code": """// starters/session08/stale_quote.cpp - HW 8's contract, in the header comment
+//   * The stale venue is the one of the crossing pair with the OLDER ts_ns.
+//   * Edge per share = |other venue's touch - stale price| - 2 * taker fee
+//     (fee = price * fee_bps * 1e-4 per leg; you pay to enter AND to exit).
+//   * No allocation, no I/O: this runs inside on_book.
+Order detect_stale(const Top v[2], double fee_bps, int position, int limit);
+
+// hft/cpp_client/include/hft_bot.hpp - the REAL hook: NO venue argument,
+// so cross-venue means one process per venue and a shared touch cache.
+virtual void on_book(const std::string& symbol, double bid, double ask,
+                     double mid, double microprice, double obi);
+virtual void on_ack(const std::string& symbol, const std::string& order_id,
+                    int queue_ahead, int level_qty);""",
+  "text": "starters/session08/stale_quote.cpp is HW 8: finish detect_stale() until its ten-row table passes (the stub passes the four no-order rows), then argue in the README what latency would make it real and what makes the signal false. hft/cpp_client/include/hft_bot.hpp is why the tournament's cross-venue plan is two processes, and on_ack is where queue_ahead arrives for the hold-or-requote decision. The finale scenario itself is hft/scenarios/week10.json."
  }
 },
 "interview": [
- {"q": "Why do venues ship market data over UDP multicast but take orders over TCP?",
-  "a": "Multicast lets the venue send each update once while the switches replicate it to every subscriber — the only cheap way to fan a firehose out to hundreds of consumers — and UDP does not retransmit, so one lost packet does not stall the ones behind it. Order entry is a single stream where losing a message is unacceptable, so TCP's reliability and ordering are worth its head-of-line blocking (plus TCP_NODELAY so Nagle does not batch your orders). The price of the data choice is that you detect loss yourself from sequence numbers, arbitrate the A/B feeds, and recover.",
-  "level": "warm-up", "skill": "trading.feed-sequencing"},
- {"q": "Why is fixed-width binary faster to decode than tag=value text, and why memcpy rather than reinterpret_cast?",
-  "a": "Every field sits at a known offset in a known-length message, so there is no delimiter scan and no ASCII-to-number conversion: you copy the bytes and byte-swap from network order, and prices are scaled integers, so there is no floating-point parse either. memcpy because casting a packed struct pointer onto a byte buffer is undefined behaviour — misaligned access and a strict-aliasing violation — while a fixed-size memcpy is well-defined and compiles to the same single load.",
-  "level": "warm-up", "skill": "trading.binary-market-data"},
- {"q": "What is wrong with assuming one recv() returns one message?",
-  "a": "TCP is a byte stream and does not preserve send boundaries, so a read can deliver half a message, one and a half, or several — the most common networking bug there is. The correct structure is to append into a persistent buffer allocated once, loop while a complete frame is present (length prefix or FIX BodyLength), dispatch each as a view, and memmove the partial remainder to the front so the next read continues it. And validate the length against a maximum before trusting it, because a corrupt length is a buffer overrun.",
-  "level": "core", "skill": "tools.message-framing"},
- {"q": "FIX is text and slow to parse. Why is it still everywhere, and what does its session layer buy you?",
-  "a": "Because it is a session protocol as much as a message format: sequence numbers, heartbeats, logon and resend requests plus a mod-256 checksum in tag 10 give an auditable, recoverable conversation with a counterparty, and it is self-describing so two firms can add a tag without breaking each other. That is exactly what order entry, drop copies and allocations need, where a few hundred nanoseconds of parsing is irrelevant next to never losing an order. Fast market data went binary because none of that is worth a per-byte scan at millions of messages a second.",
-  "level": "core", "skill": "trading.fix-protocol"},
- {"q": "Concretely, what does a DOM-style JSON parser do that a targeted extractor does not?",
-  "a": "It parses the entire document, including every level and field you will never read; it builds a tree of heap-allocated nodes — maps, vectors, std::strings — which is dozens of allocations per message; it copies keys and values out of the receive buffer; and it dispatches on types generically. A targeted extractor scans once for the keys it needs (for the arena, \"bids\":[[, \"asks\":[[ and \"mid_price\":), converts each number in place over a string_view of the buffer, and allocates nothing. The trade is that you now own schema assumptions the library would have checked, so you validate the shape once at connect.",
-  "level": "core", "skill": "perf.zero-copy-parse"},
- {"q": "What is the difference between level-triggered and edge-triggered readiness, and what must you do differently?",
-  "a": "Level-triggered keeps reporting the descriptor while data remains, so a partial read is safe — you will be told again. Edge-triggered reports only the transition to readable: fewer wake-ups, but you must drain the socket in a loop until recv returns EAGAIN, otherwise the remaining bytes sit there and no new notification ever comes — the stall nobody can reproduce. EAGAIN is therefore not an error in that loop; it is the signal that readiness is exhausted and you return to the event loop.",
-  "level": "core", "skill": "perf.nonblocking-io"},
- {"q": "Your -O3 build is 6x faster than -O0, but the vectorization report says the hot loop was not vectorized. How is that possible, and what do you do?",
-  "a": "The 6x is inlining, register allocation and scheduling, not SIMD. The loop accumulates a floating-point sum in order, and FP addition is not associative, so splitting it across eight lanes would change the result — the compiler is not allowed to. -ffast-math grants permission to reassociate: it vectorizes and the checksum moves, which means the math changed, so it is not a free win in a pricing kernel. Other common refusals are possible aliasing (fix with __restrict), data-dependent branches, odd strides and unknown trip counts. Ask the compiler first with -Rpass-missed=loop-vectorize or -fopt-info-vec, fix the obstacle, and write intrinsics only as a last resort.",
-  "level": "core", "skill": "perf.simd"},
- {"q": "What does kernel bypass actually change, and what does it cost you?",
-  "a": "It removes the kernel's generic network stack from the per-packet path: no copies through protocol layers, no syscall per receive, packets read straight from the NIC's rings in user space — which is also why the thread busy-polls a dedicated core instead of sleeping. DPDK gives the most control but you write driver-level code and often your own protocol handling; Onload/ef_vi accelerates the ordinary sockets API via LD_PRELOAD with almost no code change but ties you to that vendor's NIC; io_uring only batches syscalls through shared rings and is not bypass. The costs: vendor lock-in, a core burned at 100%, and losing the kernel's tooling and protection.",
-  "level": "senior", "skill": "perf.kernel-bypass"},
- {"q": "You pinned the hot thread and the median did not move. Was it a waste? What else belongs in the same change?",
-  "a": "No — pinning buys variance, not speed. What it removes is the rare 1–3 ms preemption or migration that lands in p99.9, so you judge it by the p99.9 spread across repeated runs of the same tape, not by p50. It only works fully with the rest of the recipe: isolate the core (isolcpus, nohz_full, rcu_nocbs) so nothing else is scheduled there, allocate on the NIC's NUMA node, and pre-fault and mlock hot memory — ideally on huge pages — at startup so no first-touch page fault or TLB storm happens mid-race. On macOS there is no affinity API, so you skip the pin and report that honestly.",
-  "level": "senior", "skill": "perf.cpu-pinning-numa"}
+ {"q": "What is the NBBO, and what does it mean for it to be crossed or locked?",
+  "a": "The NBBO is the consolidated best bid and best offer across all venues trading the name: the maximum bid and the minimum ask. Locked means the best bid equals the best ask — someone is willing to buy at exactly the price someone is willing to sell. Crossed means the best ask is below the best bid, which cannot persist: it says one venue's quote has not caught up, and it is the signal a latency arbitrageur is looking for.",
+  "level": "warm-up", "skill": "trading.nbbo-latency-arb"},
+ {"q": "Why does a latency report give p50, p99 and p99.9 instead of the mean?",
+  "a": "Because latency is heavy-tailed and usually bimodal: a fast common path plus rare stalls from allocation, page faults, cache misses or the scheduler. The mean sits between those populations and describes no real tick, and a handful of multi-millisecond stalls barely moves it. The races that matter happen on the busy, volatile ticks where the stalls show up, so the tail — p99.9 and max — is what decides whether you get filled.",
+  "level": "warm-up", "skill": "perf.tail-diagnosis"},
+ {"q": "Which perf command do you run first on a slow binary, and how do you read the flame graph afterwards?",
+  "a": "perf stat first, because it is almost free and tells you what kind of problem you have: cycles and instructions give IPC, and the cache-miss, branch-miss and page-fault counters say whether you are memory-bound, mispredicting or faulting. Then perf record -g (with DWARF call graphs for -O2 code) to learn where. In the flame graph width is the total time attributed to a frame and its children, so wide plateaus are the targets; tall towers only mean a deep stack. Two traps: it is on-CPU only, so lock waits and blocking syscalls are invisible, and a build without symbols collapses the stacks into nonsense — which is why -g stays in the release build.",
+  "level": "core", "skill": "tools.perf-profiler"},
+ {"q": "Name the usual physical causes of a latency tail and how you tell them apart.",
+  "a": "Allocation (malloc locking, refilling an arena or calling mmap), page faults on first touch, cache and TLB misses or a NUMA-remote load, hidden O(n) work such as a resize, rehash or window recompute, logging or other I/O, and OS preemption or interrupts. You distinguish them with evidence rather than intuition: allocator frames in the profile, fault counts from perf stat, cache/LLC/dTLB miss counters, and a jitter probe — a loop timing an empty body — for scheduler noise. Each has a different fix (pools, pre-faulting and mlock, layout and huge pages, bounded per-tick work, a lock-free log ring, isolation and pinning), which is why naming it comes first.",
+  "level": "core", "skill": "perf.tail-diagnosis"},
+ {"q": "You detect a crossed NBBO. Walk through what you do and what can go wrong.",
+  "a": "First check that the edge survives both taker fees — at 30 bps a leg a one-cent cross is a loss of about 59 cents a share — and size to the thin side, min(bid size, ask size). Then take the stale side on the lagging venue and hedge on the venue that already moved. What goes wrong is leg risk: the stale quote is public, so if you lose the race on one leg you are left with an unhedged directional position at a worse price. And you may be wrong about who is stale — the fresh venue can be the one about to reverse — in which case you crossed the spread twice for nothing.",
+  "level": "core", "skill": "trading.smart-order-routing"},
+ {"q": "When should a market maker requote, given that repricing loses queue position, and where does inventory skew come in?",
+  "a": "Cancel if the market moved against the quote, because a stale quote is a free option written to every taker. Requote if you are off the best price or buried deep in the level. Otherwise hold: near the front the fill is imminent, and restarting at the back of the FIFO throws away the time priority you paid for — under a quota of six messages per tick, a needless requote also burns a message. Skew enters the fair value itself: fair = microprice − k × position, so a long book shades both quotes down and sells its inventory through flow the market pays for, instead of paying the spread to hedge.",
+  "level": "core", "skill": "trading.market-making"},
+ {"q": "What is a markout, and how do you use it operationally?",
+  "a": "A markout is the signed P&L of a fill against the mid some horizon later: for a buy, mid_later minus the fill price; for a sell, the reverse. It tells you whether the fill was good independently of how the position was later closed. You bucket markouts by symbol and time of day at several horizons — the arena uses 100 ms, 1 s and 5 s — and persistent negativity means adverse selection, so you widen, skew away from that side, or stop quoting the name. In the tournament the 1-second markout is added straight into MM SCORE, so picked-off fills cost points directly.",
+  "level": "core", "skill": "trading.adverse-selection"},
+ {"q": "Why do you keep -g in a release build, and what do -march=native, -flto and PGO buy you?",
+  "a": "Debug symbols do not change the generated code; they only make perf, flame graphs and core dumps readable, so stripping them costs diagnosis for nothing. -march=native lets the compiler use this CPU's instruction set, a real win for vectorisable loops, at the price of a binary that may not run on another microarchitecture. -flto defers optimisation to link time so inlining crosses translation units, which matters when the codec and the strategy live in different files. PGO gives the compiler measured branch frequencies for layout and inlining — but only if the profiling input is representative, so you profile on the tape you will be measured on, and you re-measure, because an unrepresentative profile can make things slower.",
+  "level": "senior", "skill": "tools.compiler-flags"},
+ {"q": "Make the case for and against latency arbitrage as a business.",
+  "a": "For: it is the mechanism that enforces one price across fragmented venues, and the firms doing it usually also quote two sides, so the result is tighter spreads, deeper books and lower costs for occasional traders. Against: the specific trade takes a quote from someone who has not yet been able to withdraw it, so the profit is a transfer from a slower participant rather than new information, and the resources spent to win it — microwave links, custom silicon, colocation — are real capital spent on a purely relative advantage that is openly for sale. Both arguments are genuine; the sensible response is market design — speed bumps, frequent batch auctions, circuit breakers and LULD bands — rather than banning speed, and as an engineer you owe the market fast code that respects its risk limits.",
+  "level": "senior", "skill": "trading.hft-ethics"}
 ]
 }

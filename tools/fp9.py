@@ -1,169 +1,164 @@
 # -*- coding: utf-8 -*-
-"""Session 9 focus — The tail & the tournament (deck U9, labs/session09.md).
+"""Session 9 focus — Pre-trade risk & controls (labs/session09.md, HW 9 — A pre-trade
+risk gate, due Thu Dec 10). NEW material added in the 2026-10-05 re-schedule;
+no deck yet, so no card cites a slide. The design follows include/risk_gate.hpp
+and tests/risk_gate_test.cpp in the starter repo (integer ticks, checks in a fixed
+order, kill switch the only cross-thread member).
 
-Two halves: profile and kill the latency tail (perf, flame graphs, counters,
-jitter, PGO/LTO, sanitizers, quiet logging — Lab A), then latency arbitrage,
-market making at speed and the live tournament, with the final exam after.
 Every `code` snippet is compiled and run by tools/validate_focus.py.
 """
 
-FILE_SCOPE = {       # "v_s9_cK": number of leading lines that go at file scope
-    "v_s9_c3": 7,
-    "v_s9_c5": 4,
-    "v_s9_c6": 7,
-}
+# "v_s9_cK": number of leading display lines that are file-scope declarations
+FILE_SCOPE = {"v_s9_c1": 7, "v_s9_c3": 4, "v_s9_c6": 4}
 
 S = {
-"n": 9,
-"focus": "The tail & the tournament",
-"tagline": "Find where the microseconds go, kill the spikes without changing the answer — then race a fee-aware, tail-tight bot on one scoreboard.",
-"concepts": [
- {"title": "Why the mean lies",
-  "text": "Latency distributions are not Gaussian: they are heavy-tailed and usually bimodal, a tight fast body plus rare stalls from a fault, a miss cascade or a preemption. The mean lands in the valley between the two populations and describes no tick anyone experienced, so report p50 / p99 / p99.9 / max. Two traps: coordinated omission, where timing request-to-request under-samples exactly the slow periods (the replay tape feeds a fixed schedule, which is why it is the grading harness), and too few samples — p99.9 needs thousands of points, and one run is one draw.",
-  "code": """std::vector<long> us(1000, 38);                       // the fast body
-for (int i = 990; i < 996; ++i) us[i] = 71;
-for (int i = 996; i < 999; ++i) us[i] = 210;
-us[999] = 5200;                                       // the tick you lost
-std::sort(us.begin(), us.end());
-double mean = std::accumulate(us.begin(), us.end(), 0.0) / us.size();
-auto p = [&](double q) { return us[std::size_t(q * us.size())]; };
-std::printf("mean=%.2f p50=%ld p99=%ld p99.9=%ld max=%ld\\n",
-            mean, p(.50), p(.99), p(.999), us.back());
-// mean=43.88 p50=38 p99=71 p99.9=5200 max=5200""",
-  "deck": "Deck U9 · slide 5"},
- {"title": "perf, flame graphs — and counters that say why",
-  "text": "Linux perf is the low-overhead sampling profiler, and three verbs carry you: perf stat for totals (cycles, IPC, cache and branch misses) as the cheap first move, perf record -g --call-graph dwarf to sample stacks, perf report to rank them — then fold the stacks into a flame graph where width is time on CPU, so wide plateaus are the targets and tall thin towers are merely deep. It is on-CPU only: a sleep, a lock wait or a blocked syscall does not show. The profile says where; the counters say why. Low IPC on a hot loop means stalls, not work; a DRAM miss is 200-plus cycles; a branch mispredict flushes the pipeline for 15 to 20 — rare-but-expensive, the exact shape of a tail. Your bot profiles the same way: hft_bot --replay reads snapshots on stdin.",
-  "code": """uint32_t s = 2463534242u; long branchy = 0, branchless = 0;
-for (int i = 0; i < 1000; ++i) {
-  s ^= s << 13; s ^= s >> 17; s ^= s << 5;        // deterministic pseudo-noise
-  int x = int(s & 0xff);
-  if (x > 127) branchy += x; else branchy -= x;   // ~50% mispredict: a flush
-  branchless += (x > 127) ? x : -x;               // same value, no jump
-}
-std::printf("%ld %ld %s\\n", branchy, branchless,
-            branchy == branchless ? "identical" : "differ");
-// 52160 52160 identical     -- a mispredict costs 15-20 cycles; a select cannot""",
-  "deck": "Deck U9 · slides 6–7"},
- {"title": "Every spike has a physical cause",
-  "text": "Name the cause and the fix is targeted and permanent: allocation on the hot path (malloc usually fast, occasionally locking or calling mmap — pools and reserved buffers), page faults (pre-fault and mlock at startup), cache, TLB and NUMA misses (compact hot data, huge pages, node-local memory), and hidden O(n) or I/O (a resize, a rehash, a window recompute, a log line). Lab A's tail.cpp builds a fresh vector and re-sums 257 prices every tick; the fix is a ring sized once plus a running sum, and the proof is the same sink to the last digit with p99.9 collapsed. What is left in max after that is the OS itself — the jitter probe on an idle loop still sees gaps of 100-plus µs — which is what core isolation, IRQ routing and pinning exist to shrink.",
-  "code": """struct RollingMean {                 // allocated ONCE, O(1) per tick
-  std::vector<double> buf; std::size_t cap, count = 0, head = 0; double sum = 0;
-  explicit RollingMean(std::size_t n) : buf(n, 0.0), cap(n) {}
-  double push(double px) {
-    if (count == cap) sum -= buf[head]; else ++count;
-    sum += px; buf[head] = px; head = (head + 1 == cap) ? 0 : head + 1;
-    return sum / double(count); } };
-std::vector<double> px(5000); for (int i = 0; i < 5000; ++i) px[i] = 100 + (i % 97) * 0.01;
-RollingMean roll(256 + 1); double naive = 0, fast = 0;   // window is INCLUSIVE: 257
-for (int k = 4999 - 256; k <= 4999; ++k) naive += px[k];  // tail.cpp's re-sum
-for (double p : px) fast = roll.push(p);   std::printf("%.6f %.6f\\n", naive / 257, fast);
-// 100.451556 100.451556   -- same answer, zero allocations per tick""",
-  "deck": "Deck U9 · slides 8–9, 12"},
- {"title": "Ship the release build; keep correctness and logging off the hot path",
-  "text": "Once the algorithm is right, let the toolchain finish: -O3, -march=native for this CPU, -flto to optimise across .cpp files, -DNDEBUG to strip asserts, -g kept because symbols cost no speed and perf needs them, and a two-pass PGO build on a representative input so the compiler sees real branch data — one CMake build directory per flag set, --fresh, or the cache silently ignores your flags. Correctness is its own build: ASan + UBSan together, TSan separately, both clean on the replay, never shipped. And the hot thread does no I/O: it pushes a 32-byte POD record into your Session 7 ring, counts a drop if the ring is full, and moves on; a logger thread formats and writes.",
-  "code": """struct LogRec { uint64_t ts_ns; uint32_t code, sym; double px; int64_t qty; };
-static_assert(sizeof(LogRec) == 32);                       // one POD copy per event
-std::array<LogRec, 4> ring{}; std::size_t head = 0, tail = 0; long dropped = 0;
-for (int i = 0; i < 6; ++i) {                              // 6 fills, nobody draining yet
-  if (head - tail == ring.size()) { ++dropped; continue; } // full: count it, never block
-  ring[head++ % ring.size()] = LogRec{uint64_t(i), 1, 7, 100.0 + i, 100};
-}
-std::printf("queued=%zu dropped=%ld\\n", head - tail, dropped);
-// queued=4 dropped=2   -- the hot thread never waits on I/O""",
-  "deck": "Deck U9 · slides 10–11"},
- {"title": "Picking off a stale quote — after fees",
-  "text": "The same name trades on many venues, news reaches them at different times, and for microseconds they disagree. Consolidate the touches into the NBBO: locked means best bid equals best ask across venues, crossed means somebody's quote is stale. Picking it off takes both legs aggressively, so both pay the taker fee — at the arena's 30 bps a one-cent cross loses 59 cents a share, and only a shock-sized dislocation pays. Then it is a race: everyone sees the same public quote, the first order to reach that venue gets the fill, colocation is the tiebreaker, size is the thin side, and the real risk is a one-legged fill that turns a riskless arb into a directional position. Smart order routing picks the venue net of fees, rebates and per-venue latency.",
-  "code": """struct Top { double bid, ask; int bid_sz, ask_sz; };
-double edge(const Top& A, const Top& B, double bps) {   // buy B's ask, sell A's bid
-  return A.bid - B.ask - (A.bid + B.ask) * bps * 1e-4;   // a taker fee on BOTH legs
-}
-Top A{100.05, 100.07, 300, 300}, B{100.02, 100.04, 200, 200};   // B has not caught up
-std::printf("1c cross: %+.4f\\n", edge(A, B, 30));
-Top S{101.00, 101.02, 300, 300};                                // a shock-sized gap
-std::printf("96c cross: %+.4f  qty=%d\\n", edge(S, B, 30), std::min(S.bid_sz, B.ask_sz));
-// 1c cross: -0.5903
-// 96c cross: +0.3569  qty=200""",
-  "deck": "Deck U9 · slides 14–16"},
- {"title": "Market making at speed: queue, skew, hold",
-  "text": "A maker earns the spread and the rebate, anchors fair value on the microprice rather than the mid, and leans both quotes against inventory — fair = microprice − k × position — so risk comes off through flow the market pays for. Cancel-and-repost sends you to the back of the FIFO, so most ticks the right move is HOLD: cancel if the price moved against you, requote only if you are off the best price or buried behind more than half the level. With the tournament's quota of six messages a tick, a needless requote costs a message and the queue spot. The arena hands you queue_ahead and level_qty in on_ack / on_queue; real venues do not.",
-  "code": """enum Action { HOLD, REQUOTE, CANCEL };
-Action decide(double my_px, double best_px, int ahead, int level, bool against) {
-  if (against)           return CANCEL;    // stale: pull it
-  if (my_px != best_px)  return REQUOTE;   // off the best price
-  if (ahead > level / 2) return REQUOTE;   // buried in the queue
-  return HOLD; }                           // good spot: save the message
-const char* nm[] = {"HOLD", "REQUOTE", "CANCEL"};
-double fair = 100.016 - 0.002 * 3;         // microprice - k * inventory (long 3)
-std::printf("%s %s fair=%.3f\\n", nm[decide(100.00, 100.00, 200, 1000, false)],
-            nm[decide(100.00, 100.00, 800, 1000, false)], fair);
-// HOLD REQUOTE fair=100.010""",
-  "deck": "Deck U9 · slide 17"},
- {"title": "Markouts, and the grade that has four axes",
-  "text": "A fast fill can be a bad fill: when an informed trader hits your quote right before the move, you were the stale quote. The markout is the truth — mark each fill against the mid a moment later, signed by side; persistently negative on a symbol is toxic flow, so widen, skew away or stop quoting it. The arena computes it server-side at 100 ms, 1 s and 5 s, and the tournament's MM SCORE is realized P&L + rebates + 1-second markout − carry, in dollars. The board also ranks p99.9, OTR (messages per trade, lower wins) and passive share — optimise one axis and you wreck another. Tonight's rank is bragging rights; Canvas Phase 7 grades the tagged commit and the write-up.",
-  "code": """auto markout = [](bool bought, double fill, double later) {
-  return bought ? later - fill : fill - later;           // + good fill, - picked off
-};
-double a = markout(true, 100.04, 100.01);                // bought the top
-double b = markout(false, 100.06, 100.03);               // sold before the drop
-double mm = 14.00 + 1.00 + 100 * (a + b) - 0.50;         // realized + rebates + markout*qty - carry
-std::printf("%+.2f %+.2f MM=%.2f\\n", a, b, mm);
-// -0.03 +0.03 MM=14.50""",
-  "deck": "Deck U9 · slides 18, 23"}
-],
-"hft": {
- "text": "Why this matters in HFT",
- "paragraphs": [
-  "Nine sessions, one number. A realistic colocated software path from wire in to wire out is roughly 7 to 17 µs — bypass, parse, book and signal, risk check, serialise, send — and every earlier session shaved one of those slices. Session 9 is where you prove it: the LATENCY tab ranks bots by p99.9 tick-to-order, timed with steady_clock from the moment a book_snapshot is decoded to the moment your order leaves, and scripts/latency_replay.py replays the same fixed tape into your bot on stdin so a before/after comparison means something.",
-  "The tail work is a loop, not a trick: profile the replay, name the widest plateau or the physical cause of the spike, fix it without changing the answer, re-run the same tape, and write the before and after into a changelog. That changelog plus a flame graph is Project Phase 6, and Lab A is its template — including the honest bits, like a macOS clock that ticks in 42 ns steps and a max that stays in microseconds after the fix because the OS, not your code, took the time.",
-  "Latency arbitrage is where speed turns directly into P&L, and the fee arithmetic decides it before the race does. Both legs are aggressive, so both pay the taker fee; a crossed NBBO is only worth taking when the dislocation survives two fees, which in the finale means the shocks — AAPL earnings at tick 250, the market-wide econ print at 850, NVDA earnings at 1150. Cross-venue in C++ has a concrete shape: on_book has no venue argument and one client speaks to one venue, so you run one process per venue and share the touch through your Phase 4 shared-memory structure — POD, no pointers, and no torn reads.",
-  "Market making is the other half of the score, and it rewards discipline more than raw speed. The finale's binding constraint is messages, not size: order_quota is 6 per tick against a position limit of 1200, so every cancel-and-repost spends a message and forfeits queue position. MM SCORE adds realized P&L, rebates and the 1-second markout and subtracts carry, which is why the fastest p99.9 rarely wins it: fast is necessary, not sufficient.",
-  "Speed also carries a responsibility. It tightens spreads and links venues; it is also an arms race for access that is openly for sale, which is why real markets add circuit breakers, LULD bands, speed bumps and batch auctions — the finale runs with LULD at 8% and the short-sale rule on. Bring a clean build from a fresh clone, a bot that respects its risk limits, and numbers you can defend; the cumulative final follows in its own remote window, Dec 8–11."
- ],
- "example": {
-  "title": "In the arena",
-  "code": """// starters/session09/stale_quote.cpp - HW 9's contract, in the header comment
-//   * The stale venue is the one of the crossing pair with the OLDER ts_ns.
-//   * Edge per share = |other venue's touch - stale price| - 2 * taker fee
-//     (fee = price * fee_bps * 1e-4 per leg; you pay to enter AND to exit).
-//   * No allocation, no I/O: this runs inside on_book.
-Order detect_stale(const Top v[2], double fee_bps, int position, int limit);
-
-// hft/cpp_client/include/hft_bot.hpp - the REAL hook: NO venue argument,
-// so cross-venue means one process per venue and a shared touch cache.
-virtual void on_book(const std::string& symbol, double bid, double ask,
-                     double mid, double microprice, double obi);
-virtual void on_ack(const std::string& symbol, const std::string& order_id,
-                    int queue_ahead, int level_qty);""",
-  "text": "starters/session09/stale_quote.cpp is HW 9: finish detect_stale() until its ten-row table passes (the stub passes the four no-order rows), then argue in the README what latency would make it real and what makes the signal false. hft/cpp_client/include/hft_bot.hpp is why the tournament's cross-venue plan is two processes, and on_ack is where queue_ahead arrives for the hold-or-requote decision. The finale scenario itself is hft/scenarios/week10.json."
- }
-},
-"interview": [
- {"q": "What is the NBBO, and what does it mean for it to be crossed or locked?",
-  "a": "The NBBO is the consolidated best bid and best offer across all venues trading the name: the maximum bid and the minimum ask. Locked means the best bid equals the best ask — someone is willing to buy at exactly the price someone is willing to sell. Crossed means the best ask is below the best bid, which cannot persist: it says one venue's quote has not caught up, and it is the signal a latency arbitrageur is looking for.",
-  "level": "warm-up", "skill": "trading.nbbo-latency-arb"},
- {"q": "Why does a latency report give p50, p99 and p99.9 instead of the mean?",
-  "a": "Because latency is heavy-tailed and usually bimodal: a fast common path plus rare stalls from allocation, page faults, cache misses or the scheduler. The mean sits between those populations and describes no real tick, and a handful of multi-millisecond stalls barely moves it. The races that matter happen on the busy, volatile ticks where the stalls show up, so the tail — p99.9 and max — is what decides whether you get filled.",
-  "level": "warm-up", "skill": "perf.tail-diagnosis"},
- {"q": "Which perf command do you run first on a slow binary, and how do you read the flame graph afterwards?",
-  "a": "perf stat first, because it is almost free and tells you what kind of problem you have: cycles and instructions give IPC, and the cache-miss, branch-miss and page-fault counters say whether you are memory-bound, mispredicting or faulting. Then perf record -g (with DWARF call graphs for -O2 code) to learn where. In the flame graph width is the total time attributed to a frame and its children, so wide plateaus are the targets; tall towers only mean a deep stack. Two traps: it is on-CPU only, so lock waits and blocking syscalls are invisible, and a build without symbols collapses the stacks into nonsense — which is why -g stays in the release build.",
-  "level": "core", "skill": "tools.perf-profiler"},
- {"q": "Name the usual physical causes of a latency tail and how you tell them apart.",
-  "a": "Allocation (malloc locking, refilling an arena or calling mmap), page faults on first touch, cache and TLB misses or a NUMA-remote load, hidden O(n) work such as a resize, rehash or window recompute, logging or other I/O, and OS preemption or interrupts. You distinguish them with evidence rather than intuition: allocator frames in the profile, fault counts from perf stat, cache/LLC/dTLB miss counters, and a jitter probe — a loop timing an empty body — for scheduler noise. Each has a different fix (pools, pre-faulting and mlock, layout and huge pages, bounded per-tick work, a lock-free log ring, isolation and pinning), which is why naming it comes first.",
-  "level": "core", "skill": "perf.tail-diagnosis"},
- {"q": "You detect a crossed NBBO. Walk through what you do and what can go wrong.",
-  "a": "First check that the edge survives both taker fees — at 30 bps a leg a one-cent cross is a loss of about 59 cents a share — and size to the thin side, min(bid size, ask size). Then take the stale side on the lagging venue and hedge on the venue that already moved. What goes wrong is leg risk: the stale quote is public, so if you lose the race on one leg you are left with an unhedged directional position at a worse price. And you may be wrong about who is stale — the fresh venue can be the one about to reverse — in which case you crossed the spread twice for nothing.",
-  "level": "core", "skill": "trading.smart-order-routing"},
- {"q": "When should a market maker requote, given that repricing loses queue position, and where does inventory skew come in?",
-  "a": "Cancel if the market moved against the quote, because a stale quote is a free option written to every taker. Requote if you are off the best price or buried deep in the level. Otherwise hold: near the front the fill is imminent, and restarting at the back of the FIFO throws away the time priority you paid for — under a quota of six messages per tick, a needless requote also burns a message. Skew enters the fair value itself: fair = microprice − k × position, so a long book shades both quotes down and sells its inventory through flow the market pays for, instead of paying the spread to hedge.",
-  "level": "core", "skill": "trading.market-making"},
- {"q": "What is a markout, and how do you use it operationally?",
-  "a": "A markout is the signed P&L of a fill against the mid some horizon later: for a buy, mid_later minus the fill price; for a sell, the reverse. It tells you whether the fill was good independently of how the position was later closed. You bucket markouts by symbol and time of day at several horizons — the arena uses 100 ms, 1 s and 5 s — and persistent negativity means adverse selection, so you widen, skew away from that side, or stop quoting the name. In the tournament the 1-second markout is added straight into MM SCORE, so picked-off fills cost points directly.",
-  "level": "core", "skill": "trading.adverse-selection"},
- {"q": "Why do you keep -g in a release build, and what do -march=native, -flto and PGO buy you?",
-  "a": "Debug symbols do not change the generated code; they only make perf, flame graphs and core dumps readable, so stripping them costs diagnosis for nothing. -march=native lets the compiler use this CPU's instruction set, a real win for vectorisable loops, at the price of a binary that may not run on another microarchitecture. -flto defers optimisation to link time so inlining crosses translation units, which matters when the codec and the strategy live in different files. PGO gives the compiler measured branch frequencies for layout and inlining — but only if the profiling input is representative, so you profile on the tape you will be measured on, and you re-measure, because an unrepresentative profile can make things slower.",
-  "level": "senior", "skill": "tools.compiler-flags"},
- {"q": "Make the case for and against latency arbitrage as a business.",
-  "a": "For: it is the mechanism that enforces one price across fragmented venues, and the firms doing it usually also quote two sides, so the result is tighter spreads, deeper books and lower costs for occasional traders. Against: the specific trade takes a quote from someone who has not yet been able to withdraw it, so the profit is a transfer from a slower participant rather than new information, and the resources spent to win it — microwave links, custom silicon, colocation — are real capital spent on a purely relative advantage that is openly for sale. Both arguments are genuine; the sensible response is market design — speed bumps, frequent batch auctions, circuit breakers and LULD bands — rather than banning speed, and as an engineer you owe the market fast code that respects its risk limits.",
-  "level": "senior", "skill": "trading.hft-ethics"}
-]
+  "n": 9,
+  "focus": "Pre-trade risk & controls",
+  "tagline": "Before an order leaves your process it must pass a gate you wrote, can switch off in one store, and can run in a few nanoseconds.",
+  "concepts": [
+    {
+      "title": "Fat-finger checks: max size, max notional and the price collar",
+      "text": "The cheapest bug to prevent is the one that sends a thousand times too much, or at a price a thousand times too far. Three comparisons stop most of them: a maximum quantity (shares), a maximum notional (price times quantity, in money), and a collar — the order's price may sit no further than some number of basis points from a reference such as the mid. Keep prices as integer ticks so the limits never meet floating-point rounding, cross-multiply instead of dividing, and make the edge explicit: here exactly 8% is allowed and one tick past it is refused. Return a reason, not a bool, so a refusal can be logged and counted.",
+      "code": r"""enum class Risk : uint8_t { Ok, MaxQty, MaxNotional, PriceCollar };
+struct Lim { int32_t max_qty = 500; int64_t max_notional = 5'000'000; int32_t collar_bps = 800; };
+Risk check(const Lim& l, int32_t qty, int64_t px, int64_t ref) {     // integer ticks, $0.01
+  if (qty > l.max_qty) return Risk::MaxQty;                           // fat finger: shares
+  if (int64_t(qty) * px > l.max_notional) return Risk::MaxNotional;   // fat finger: money
+  if (std::llabs(px - ref) * 10000 > l.collar_bps * ref) return Risk::PriceCollar;
+  return Risk::Ok; }
+Lim l; int64_t ref = 10'000;                                          // reference: $100.00
+std::printf("%d %d %d %d %d\n", (int)check(l, 100, 10'000, ref), (int)check(l, 501, 10'000, ref),
+            (int)check(l, 500, 10'001, ref), (int)check(l, 100, 10'800, ref), (int)check(l, 100, 10'801, ref));
+// 0 1 2 0 3   -- ok, too big, too much money, on the 8% collar edge, one tick past it""",
+      "deck": "Deck U9 · slides 10, 19"
+    },
+    {
+      "title": "Position and exposure limits: count what is still resting",
+      "text": "A position limit is only useful if it is checked against the position you could have, not the one you have. Track a signed net position per symbol and the quantity still resting on each side; an order is safe only if filling every resting order and then this one stays inside the limit — the worst case. Checking just the current position lets ten orders that each look fine breach it together. Fills move the position and release open quantity, a cancel or reject releases open quantity without moving the position, and a position beyond the limit that the gate never approved is a sign something bypassed it: fail closed and trip the kill switch.",
+      "code": r"""long pos = 900, open_buy = 200, open_sell = 0, max_pos = 1200;     // net + resting
+auto buy_ok  = [&](long q) { return std::labs(pos + open_buy + q) <= max_pos; };    // worst case
+auto sell_ok = [&](long q) { return std::labs(pos - open_sell - q) <= max_pos; };
+std::printf("%d %d %d %d\n", buy_ok(100), buy_ok(101), sell_ok(2100), sell_ok(2101));
+// 1 0 1 0   -- 900 + 200 + 100 is exactly the limit; resting quantity counts before it fills""",
+      "deck": "Deck U9 · slide 11"
+    },
+    {
+      "title": "Throttling: the token bucket",
+      "text": "Venues meter messages, and a bot that exceeds its quota is refused or disconnected at the worst moment, so you meter yourself first. A token bucket holds up to a capacity of tokens and refills at a steady rate; each message spends one, and an empty bucket means wait or refuse. The capacity is the burst you may send at once and the rate is the sustained speed, which is exactly how the finale's quota reads: a few messages per tick. The refill is arithmetic on the timestamp you were handed — no timer, no thread, no clock call inside the check — so the bucket costs a multiply and a compare. A refused order must not spend a token, and cancels spend one too.",
+      "code": r"""struct Bucket { double tokens, cap, rate; uint64_t last_ns;
+  bool take(uint64_t now) {                                           // one call per message
+    tokens = std::min(cap, tokens + (now - last_ns) * 1e-9 * rate); last_ns = now;
+    if (tokens < 1.0) return false; tokens -= 1.0; return true; } };
+Bucket b{6, 6, 6, 0}; int ok = 0;                                     // 6 msgs/s, burst 6, starts full
+for (int i = 0; i < 10; ++i) ok += b.take(0);                         // ten orders in one instant
+std::printf("%d %d\n", ok, b.take(500'000'000));                      // half a second later
+// 6 1   -- the burst passes six; 0.5 s refills three tokens, so the next one is allowed""",
+      "deck": "Deck U9 · slide 12"
+    },
+    {
+      "title": "The kill switch: one atomic flag, read first",
+      "text": "When something is wrong you need to stop all new orders now, from any thread, a signal handler or an operator, without waiting for the strategy thread to notice. The mechanism is one std::atomic<bool> read at the top of the gate: a relaxed load is a plain load on x86 and ARM, costs about a nanosecond and sits in a cache line that is almost never written. A flag beats a lock (the hot thread would wait for whoever holds it) and a message (the stop would queue behind the very traffic you want to stop). Relaxed is enough because the flag guards no other data; use release on the store and acquire on the load if it also publishes a reason. A lock-free atomic may be set from a signal handler. Cancels must still pass — the switch needs them — and the gate fails closed: a position it never approved trips it too.",
+      "code": r"""std::atomic<bool> killed{false};                                      // one flag, shared
+int sent = 0;
+auto send = [&] { if (killed.load(std::memory_order_relaxed)) return false; ++sent; return true; };
+send(); send();
+std::thread([&] { killed.store(true, std::memory_order_release); }).join();   // any thread may trip it
+send();                                                               // refused: the flag is read first
+std::printf("%d %d\n", sent, (int)std::atomic<bool>::is_always_lock_free);
+// 2 1   -- two orders went out and the third was stopped; the flag is lock-free""",
+      "deck": "Deck U9 · slides 15, 21"
+    },
+    {
+      "title": "Self-trade prevention: do not cross your own book",
+      "text": "If you quote both sides and also send aggressive orders, one day your buy meets your own resting sell. Nothing economic happened, you paid fees on both legs, and in a real market a pattern of self-matches looks like a wash trade, which is a compliance problem and not just a cost. Prevention is a local check: keep the lowest price of your own resting asks and the highest of your own resting bids, and refuse (or cancel the resting side, a policy choice you document) any order that would reach them. It uses only your own state, so it is O(1) with no book lookup, and it must be updated on every ack, fill and cancel or it will refuse good orders or miss bad ones.",
+      "code": r"""long my_best_ask = 10'005, my_best_bid = 9'995;                       // OUR resting quotes only
+auto buy_hits_me  = [&](long px) { return my_best_ask > 0 && px >= my_best_ask; };
+auto sell_hits_me = [&](long px) { return my_best_bid > 0 && px <= my_best_bid; };
+std::printf("%d %d %d %d\n", buy_hits_me(10'004), buy_hits_me(10'005), sell_hits_me(9'996), sell_hits_me(9'995));
+// 0 1 0 1   -- a buy at or through our own ask, or a sell at or through our own bid, would trade with ourselves""",
+      "deck": "Deck U9 · slides 13–14"
+    },
+    {
+      "title": "What a check costs: nanoseconds, in the latency budget",
+      "text": "A gate is on every order, so it is part of your tick-to-trade number: a few nanoseconds against a budget of microseconds is cheap insurance, a lock or a system call in it is not. The recipe is the one from the whole course: no allocation, no clock read, no lock; limits and per-symbol state in one flat, cache-resident struct; the cheapest and most likely rejections first; branches the predictor can learn. Then measure it the honest way — a function the optimiser cannot inline away, inputs it cannot predict, a sink, percentiles. On the instructor's machine this three-check gate runs in about 2–3 ns per order; treat that as a typical figure, not a promise, and measure yours. If it ever shows up in a flame graph, the answer is a cheaper check, never removing it.",
+      "code": r"""struct Lim { int32_t max_qty = 500; int64_t max_notional = 5'000'000, collar = 800; };
+__attribute__((noinline)) int check(const Lim& l, int32_t q, int64_t px, int64_t ref) {
+  return q > l.max_qty ? 1 : int64_t(q) * px > l.max_notional ? 2
+       : std::llabs(px - ref) * 10000 > l.collar * ref ? 3 : 0; }     // three compares, no allocation
+std::vector<int32_t> qty(4096); std::vector<int64_t> px(4096); unsigned s = 1;
+for (int i = 0; i < 4096; ++i) { s = s * 1664525u + 1013904223u; qty[i] = 1 + (s >> 8) % 400; px[i] = 9700 + (s >> 4) % 600; }
+auto t0 = std::chrono::steady_clock::now(); long sink = 0;
+for (int r = 0; r < 200; ++r) for (int i = 0; i < 4096; ++i) sink += check(Lim{}, qty[i], px[i], 10'000);
+double ns = std::chrono::duration<double, std::nano>(std::chrono::steady_clock::now() - t0).count() / (200 * 4096.0);
+asm volatile("" : : "r"(sink) : "memory");                            // the sink: keep the work
+std::printf("%ld %s\n", sink, ns < 100 ? "under 100 ns" : "slow");
+// 0 under 100 ns   -- every order passes; the whole gate costs a few ns""",
+      "deck": "Deck U9 · slides 18–20, 22"
+    }
+  ],
+  "hft": {
+    "text": "Why this matters in HFT",
+    "paragraphs": [
+      "Speed without controls is how firms disappear. The faster your path from wire to wire, the faster a bug becomes a position: a stuck loop, a wrong sign, a stale reference price or a test flag left on can send thousands of orders before a human reads the first alert. That is why the last piece of the hot path is the one that says no.",
+      "It is also the law. SEC Rule 15c3-5, the market access rule, requires a broker-dealer that gives itself or a client access to an exchange to run risk management controls under its own direct and exclusive control, applied before the order reaches the market: credit and capital limits, checks that block erroneous orders by price and size, and regulatory checks. Unfiltered 'naked access' through a broker's name is exactly what it ended. The checks in this session are the engineering shape of those words.",
+      "Knight Capital is the case study. On 1 August 2012 the firm deployed new order-routing code to seven of its eight servers; the eighth kept the old code. The new code reused a flag that years earlier had switched on an obsolete function called Power Peg, so on the one un-updated server the same flag woke it up. For about 45 minutes the server sent orders at the market and nothing stopped it; the firm lost roughly $460 million and needed an emergency rescue within days. The SEC later fined Knight $12 million for violating 15c3-5. The lessons are ones you now have code for: deploy identically everywhere, never repurpose a flag, put a hard cumulative limit and a kill switch outside the strategy, and alert on what you did not expect.",
+      "In the arena the same limits are enforced on you. The venue refuses an order above its maximum size, outside the 8% LULD band, past the position limit of 1200 or beyond the quota of six messages per tick, and each refusal costs you a message and a place in the queue. A client-side gate that refuses first costs nanoseconds and keeps the venue's rejects at zero; and a bot that is flattened by the maintenance check is a bot that stopped trading. HW 9 is that gate: ten checks in a fixed order with a reason code for each, one atomic kill switch, flat per-symbol state, and a latency number for the whole thing.",
+      "Design the gate as the last stage of your pipeline, owned by the one hot thread, with exactly one member any other thread may touch: the kill switch. Everything else is plain arithmetic on state you already hold, so it stays inside the latency budget and inside your test table. Fail closed: when state is inconsistent, such as a position beyond a limit you never approved, stop sending and let a human decide."
+    ],
+    "example": {
+      "title": "In the arena",
+      "code": "// include/risk_gate.hpp (HW 9) - the reasons check() can return, in the order it tests them\nenum class Risk : uint8_t {\n    Ok = 0,\n    Killed,       // kill switch is on: no new orders (cancels still go through)\n    BadOrder,     // qty <= 0, px <= 0, or sym >= kMaxSymbols\n    MaxQty,       // qty > max_qty                                  (fat finger, shares)\n    MaxNotional,  // int64(qty) * px > max_notional                 (fat finger, money)\n    NoReference,  // no reference price set for this symbol yet (ref <= 0)\n    PriceCollar,  // |px - ref| * 10000 > collar_bps * ref          (edge = allowed)",
+      "text": "include/risk_gate.hpp in your starter repo is HW 9: implement RiskGate so tests/risk_gate_test.cpp passes. The order of the enum is part of the contract, because check() returns the first failure. Prices are integer ticks, time arrives in Order::ts_ns so the gate never reads a clock, state is a flat per-symbol array, and the kill switch is the only std::atomic member."
+    }
+  },
+  "interview": [
+    {
+      "q": "What is a pre-trade risk check, and why does it run in the client before the order is sent when the exchange has its own checks?",
+      "a": "It is a test an order must pass before it leaves your process — size, notional, price against a reference, position, rate, self-match. The exchange's checks are the last line and they are not yours: a refusal there costs a round trip, a message from your quota and your queue position, and a check you do not control cannot satisfy a rule that says the firm itself must hold the controls. A client-side gate refuses in nanoseconds, keeps the reject count near zero, and is the layer you can test, log and tune.",
+      "level": "warm-up",
+      "skill": "trading.order-size-notional-collar"
+    },
+    {
+      "q": "What is a price collar, and why compare |px - ref| * 10000 against collar_bps * ref instead of dividing?",
+      "a": "A collar refuses a limit order whose price is more than a set number of basis points from a reference such as the mid — it is what catches a misplaced decimal point that a size check cannot. Cross-multiplying keeps everything in integers: no division, no floating-point rounding at the edge, and no divide-by-zero if the reference is missing (which you test separately). With integer ticks the edge is exact, so you can state and test that exactly 8% passes and one tick beyond fails.",
+      "level": "warm-up",
+      "skill": "trading.order-size-notional-collar"
+    },
+    {
+      "q": "Why must a position limit count orders that are still resting, and what do a fill and a cancel each do to the gate's state?",
+      "a": "Because the limit applies to the position you could end up with, and every resting order may fill before the next one is checked. Checking only the current position lets several individually acceptable orders breach it together. The gate checks the worst case — position plus all resting buy quantity plus this order, or position minus resting sell quantity minus this order. A fill moves the position and releases that quantity from the open total; a cancel, reject or expiry releases the open quantity without moving the position. Both must clamp at zero so a late or duplicated message cannot make the open count negative.",
+      "level": "core",
+      "skill": "trading.position-exposure-limits"
+    },
+    {
+      "q": "Describe a token bucket. What do its capacity and its rate mean, and why does it need no timer?",
+      "a": "It holds up to capacity tokens and gains rate tokens per second; every message spends one, and with less than one token the message is refused or delayed. Capacity is the burst allowed at once, rate is the sustained throughput. It needs no timer because the refill is computed lazily on each call from the time elapsed since the last call: tokens = min(cap, tokens + elapsed * rate). Using the timestamp the caller already has keeps the check free of clock reads, locks and threads, so it is a multiply and a compare. A refused order should not spend a token.",
+      "level": "core",
+      "skill": "perf.token-bucket-throttle"
+    },
+    {
+      "q": "Design a kill switch for a trading process. Which thread sets it, how does the hot path read it, and which memory order do you use?",
+      "a": "Any thread, an operator command or a signal handler sets one std::atomic<bool>; the hot path loads it at the very start of the gate and refuses every new order while it is set. The flag is in its own cache line so reads stay cheap, and it must be lock-free so a signal handler may legally store to it. A relaxed load and store are enough when the flag guards no other data; if the setter also publishes a reason or state the reader will use, store with release and load with acquire. It does not use a lock (the hot thread would wait) or a queue message (the stop would sit behind the traffic it is meant to stop). Cancels are still allowed through, since the switch needs them, and the gate also trips it itself on inconsistent state.",
+      "level": "core",
+      "skill": "cpp.atomic-kill-switch"
+    },
+    {
+      "q": "What is a self-trade, why is it a problem beyond the fees, and how do you prevent it cheaply?",
+      "a": "It is your own aggressive order matching your own resting order on the other side. Economically nothing changes, but you pay fees on both legs, you print volume that never existed, and a pattern of them looks like wash trading, which regulators treat as manipulation. The prevention uses only your own state: keep the lowest price of your resting asks and the highest of your resting bids, and refuse (or cancel the resting order, depending on the documented policy) any order that would reach them. It is O(1), needs no book lookup, and has to be updated on every ack, fill and cancel.",
+      "level": "core",
+      "skill": "trading.self-trade-prevention"
+    },
+    {
+      "q": "Walk through Knight Capital in August 2012. What failed, and which controls would have limited the damage?",
+      "a": "The firm deployed new routing code to seven of eight servers; the eighth kept the old code. The new release reused a flag that had once switched on an obsolete function, Power Peg, so on the un-updated server the flag reactivated it, and that server sent orders into the market for about 45 minutes. The loss was roughly $460 million and the firm needed an emergency rescue within days; the SEC later fined it $12 million under Rule 15c3-5. Failures: a manual, inconsistent deployment; dead code left in production and a flag repurposed; alerts that were ignored. Controls that would have capped it: a pre-trade limit on cumulative orders or position per symbol and in total, a kill switch outside the strategy that an operator can trip, and automated checks that the version is the same on every server before the market opens.",
+      "level": "senior",
+      "skill": "trading.risk-regulation"
+    },
+    {
+      "q": "Your gate adds latency on every order. How do you decide what it is allowed to cost, and how do you keep it cheap?",
+      "a": "It is a stage in the tick-to-trade budget, so it gets a share and is measured like every other stage: a function the optimiser cannot inline away, unpredictable inputs, a sink, and p50 / p99 / p99.9 rather than a mean. Then keep it structurally cheap: no allocation, no lock, no clock read (time is passed in); limits and per-symbol state in one flat struct that stays in cache; the most likely and cheapest rejections first; integer arithmetic; branches the predictor can learn. A few nanoseconds against a microsecond budget is the right price for the insurance; the answer to a gate that shows up in a profile is a cheaper check, not deleting it, because the regulator and the next bad deploy will not accept either.",
+      "level": "senior",
+      "skill": "perf.risk-check-cost"
+    }
+  ]
 }

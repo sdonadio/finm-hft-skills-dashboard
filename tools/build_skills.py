@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """Build skills.js (window.SKILLS) for UChicago FINM 32700.
 
-Session map (authoritative): course/hft-uchicago/RESEQUENCE_PLAN.md, 2026-09-29.
-  S1 microstructure & the LOB · S2 pointers & the cost of memory · S3 OOP I
-  (encapsulation & inheritance) · S4 OOP II (polymorphism & smart pointers) ·
-  S5 templates, compile-time & CRTP (+ midterm) · S6 memory pools & the order
-  book · S7 concurrency, atomics to lock-free · S8 the wire & the machine ·
-  S9 the tail & the tournament (+ final).
+Session map (authoritative): re-scheduled 2026-10-05 (old S2+S3 merged into S2).
+  S1 microstructure & the LOB · S2 pointers & the cost of memory + OOP I
+  (encapsulation & inheritance) · S3 OOP II (polymorphism & smart pointers) ·
+  S4 templates, compile-time & CRTP · S5 memory pools & the order book (+ the
+  midterm, Sessions 1-4) · S6 concurrency, atomics to lock-free · S7 the wire &
+  the machine · S8 the tail & the tournament · S9 pre-trade risk & controls
+  (+ the final).
 
 Sources: decks course/hft-uchicago/uN.pptx (slide numbers extracted from the real
 .pptx into ../raw/slides.json), speaker guides sessionN_talking_points.md, labs
