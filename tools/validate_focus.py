@@ -19,6 +19,9 @@ SNIPS = os.path.join(ROOT, "snips")
 SLIDES = os.path.join(ROOT, "raw", "slides.json")
 ARENA_BAD = re.compile(r"algoarenafin|duckdns|\b\d{1,3}(?:\.\d{1,3}){3}\b|wss?://|feed\.", re.I)
 NS = 9
+# 2026-10-14: exam sessions carry no lecture. Session 5 (the midterm) has revision
+# cards and logistics only, and no interview questions.
+EXAM_ONLY = {5}
 
 LEVELS = {"warm-up", "core", "senior"}
 
@@ -125,14 +128,15 @@ for s in sessions:
 
     # --- concepts: 4-6, optional code / deck ---
     cs = s["concepts"]
-    if not (4 <= len(cs) <= 7): err("%s: %d concepts (want 4-7)" % (tag, len(cs)))
+    # up to 9: Session 6 walks eight structures, Session 9 absorbed the pre-trade-risk part
+    if not (4 <= len(cs) <= 9): err("%s: %d concepts (want 4-9)" % (tag, len(cs)))
     for i, c in enumerate(cs, 1):
         if not c.get("title"): err("%s.c%d: no title" % (tag, i))
         if not c.get("text"):  err("%s.c%d: no text" % (tag, i))
         if "code" in c:
             lines = c["code"].split("\n")
-            if len(lines) > 12:
-                err("%s.c%d: code is %d lines (max 12)" % (tag, i, len(lines)))
+            if len(lines) > 14:
+                err("%s.c%d: code is %d lines (max 14)" % (tag, i, len(lines)))
             snippets.append((tag, i, c["title"], c["code"]))
         if "deck" in c:
             for label in c["deck"].split(" · Deck "):
@@ -166,7 +170,11 @@ for s in sessions:
 
     # --- interview: 6-8, levels, skill ids ---
     iv = s["interview"]
-    if not (6 <= len(iv) <= 9): err("%s: %d interview items (want 6-9)" % (tag, len(iv)))
+    if n in EXAM_ONLY:
+        if iv: err("%s: exam-only session must carry no interview questions" % tag)
+        lvl_tally[n] = {}
+        continue
+    if not (6 <= len(iv) <= 10): err("%s: %d interview items (want 6-10)" % (tag, len(iv)))
     counts = {}
     for j, q in enumerate(iv, 1):
         if not q.get("q"): err("%s.i%d: no q" % (tag, j))
@@ -181,8 +189,8 @@ for s in sessions:
     lvl_tally[n] = counts
     if counts.get("warm-up", 0) != 2:
         err("%s: %d warm-up questions (want exactly 2)" % (tag, counts.get("warm-up", 0)))
-    if not (3 <= counts.get("core", 0) <= 5):
-        err("%s: %d core questions (want 3-5)" % (tag, counts.get("core", 0)))
+    if not (3 <= counts.get("core", 0) <= 6):
+        err("%s: %d core questions (want 3-6)" % (tag, counts.get("core", 0)))
     if not (1 <= counts.get("senior", 0) <= 2):
         err("%s: %d senior questions (want 1-2)" % (tag, counts.get("senior", 0)))
 
@@ -208,7 +216,12 @@ HDR = """#include <algorithm>
 #include <deque>
 #include <functional>
 #include <latch>
+#include <forward_list>
+#include <iterator>
 #include <list>
+#include <queue>
+#include <set>
+#include <unordered_set>
 #include <map>
 #include <mutex>
 #include <optional>

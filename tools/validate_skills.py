@@ -34,7 +34,8 @@ assert raw.endswith(";"), "must end with ;"
 data = json.loads(raw[len("window.SKILLS = "):-1])
 
 NS = 9
-LAB_OF = {n: [n] for n in range(1, NS + 1)}     # one lab per session
+EXAM_ONLY = {5}        # 2026-10-14: the midterm session has no lecture and no lab
+LAB_OF = {n: ([] if n in EXAM_ONLY else [n]) for n in range(1, NS + 1)}   # one lab per teaching session
 
 errs = []
 def chk(cond, msg):
@@ -179,8 +180,14 @@ for k in skills:
     got = {s["n"] for s in sess if k["id"] in s["skills"]}
     chk(want == got, "%s should appear in sessions %r but appears in %r" % (k["id"], sorted(want), sorted(got)))
 for s in sess:
-    chk(5 <= len(s["skills"]) <= 10, "session %d has %d skills (want 5-10)" % (s["n"], len(s["skills"])))
-    chk(s["lab"]["url"].endswith("session%02d.md" % s["n"]), "session %d lab url wrong" % s["n"])
+    # 11 for the session that absorbed the pre-trade-risk part (2026-10-14)
+    chk(5 <= len(s["skills"]) <= 11, "session %d has %d skills (want 5-11)" % (s["n"], len(s["skills"])))
+    if s["n"] in EXAM_ONLY:
+        chk(s["lab"] is None, "session %d is exam-only and must carry no lab" % s["n"])
+        chk(not any(by_id[i]["introduced"] == s["n"] for i in s["skills"]),
+            "session %d is exam-only and must introduce no skill" % s["n"])
+    else:
+        chk(s["lab"]["url"].endswith("session%02d.md" % s["n"]), "session %d lab url wrong" % s["n"])
 
 # --- wording: sessions, never weeks (companion page URLs excepted)
 for _m in set(re.findall(r"\b[Ww]eeks? ?\d+", re.sub(r"[\w/.-]*week\d+\.(?:html|json|md)", "", raw))):

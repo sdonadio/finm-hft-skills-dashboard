@@ -5,7 +5,7 @@ from skills_common import *  # noqa: F401,F403
 SKILLS = [
     S("cpp.virtual-dispatch", "cpp", "Virtual functions, override/final & abstract interfaces",
       "You can make a call through a Base& run the derived body with virtual and override, give every polymorphic base a virtual destructor, write an abstract interface of pure virtuals, and name the three things dynamic dispatch does not change: default arguments, overload sets and name lookup.",
-      3, [], 3,
+      3, [5], 3,
       [deck(3, "slides 5–8, 11"),
        lab(3, "steps 1–3 — an IStrategy interface and a broken override, delete through a base, the vptr in a constructor"),
        hw(3),
@@ -30,7 +30,7 @@ SKILLS = [
        final("tpl")], True),
     S("cpp.smart-pointers", "cpp", "unique_ptr, shared_ptr, weak_ptr",
       "You can own an object with unique_ptr by default, justify shared_ptr only for genuinely shared lifetime, explain why its tax is the atomic copy and not the dereference, and break an ownership cycle with weak_ptr.",
-      3, [], 3,
+      3, [5], 3,
       [deck(3, "slides 18–22"),
        lab(3, "steps 5–6 — sizes and allocation counts, the shared_ptr tax, contention and a weak_ptr cycle"),
        hw(3),
